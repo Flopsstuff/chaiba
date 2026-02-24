@@ -29,25 +29,30 @@ export function Home() {
     <>
       <Header />
       <div className="home">
-        <div className="home__layout">
-          <WhitePanel isOpen={showWhite} />
+        <div className="toolbar">
           <button
             type="button"
-            className="home__toggle home__toggle--left"
+            className={`toolbar__toggle ${showWhite ? 'toolbar__toggle--active' : ''}`}
             onClick={() => setWhiteOpen((v) => !v)}
             aria-label={showWhite ? 'Hide white panel' : 'Show white panel'}
           >
-            {showWhite ? '◀' : '▶'}
+            {showWhite ? '◀ White' : '▶ White'}
           </button>
-          <Arena />
+          <div className="toolbar__notation">
+            {/* game notation will go here */}
+          </div>
           <button
             type="button"
-            className="home__toggle home__toggle--right"
+            className={`toolbar__toggle ${showBlack ? 'toolbar__toggle--active' : ''}`}
             onClick={() => setBlackOpen((v) => !v)}
             aria-label={showBlack ? 'Hide black panel' : 'Show black panel'}
           >
-            {showBlack ? '▶' : '◀'}
+            {showBlack ? 'Black ▶' : 'Black ◀'}
           </button>
+        </div>
+        <div className="home__layout">
+          <WhitePanel isOpen={showWhite} />
+          <Arena />
           <BlackPanel isOpen={showBlack} />
         </div>
       </div>
