@@ -1,0 +1,203 @@
+import { useState, useEffect } from 'react';
+import { Header } from '../components/Header';
+import './Settings.css';
+
+const API_KEY_STORAGE = 'openrouter_api_key';
+const MODELS_STORAGE = 'selected_models';
+
+interface ApiModel {
+  id: string;
+  name: string;
+}
+
+export function Settings() {
+  const [apiKey, setApiKey] = useState('');
+  const [saved, setSaved] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState<'success' | 'error' | null>(null);
+
+  const [allModels, setAllModels] = useState<ApiModel[]>([]);
+  const [selectedModels, setSelectedModels] = useState<ApiModel[]>([]);
+  const [loadingModels, setLoadingModels] = useState(false);
+  const [search, setSearch] = useState('');
+
+  useEffect(() => {
+    const storedKey = localStorage.getItem(API_KEY_STORAGE);
+    if (storedKey) {
+      setApiKey(storedKey);
+    }
+
+    const storedModels = localStorage.getItem(MODELS_STORAGE);
+    if (storedModels) {
+      setSelectedModels(JSON.parse(storedModels));
+    }
+  }, []);
+
+  const handleSave = () => {
+    localStorage.setItem(API_KEY_STORAGE, apiKey);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  };
+
+  const handleTest = async () => {
+    if (!apiKey) {
+      setTestResult('error');
+      setTimeout(() => setTestResult(null), 2000);
+      return;
+    }
+
+    setTesting(true);
+    setTestResult(null);
+
+    try {
+      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'openai/gpt-3.5-turbo',
+          messages: [{ role: 'user', content: 'Say "OK" and nothing else.' }],
+          max_tokens: 10,
+        }),
+      });
+
+      if (response.ok) {
+        setTestResult('success');
+      } else {
+        setTestResult('error');
+      }
+    } catch {
+      setTestResult('error');
+    } finally {
+      setTesting(false);
+      setTimeout(() => setTestResult(null), 2000);
+    }
+  };
+
+  const handleLoadModels = async () => {
+    setLoadingModels(true);
+    try {
+      const response = await fetch('https://openrouter.ai/api/v1/models');
+      if (response.ok) {
+        const data = await response.json();
+        const models = data.data.map((m: { id: string; name: string }) => ({
+          id: m.id,
+          name: m.name,
+        }));
+        setAllModels(models);
+      }
+    } catch (error) {
+      console.error('Failed to load models:', error);
+    } finally {
+      setLoadingModels(false);
+    }
+  };
+
+  const toggleModel = (model: ApiModel) => {
+    const exists = selectedModels.find((m) => m.id === model.id);
+    let newSelected: ApiModel[];
+    if (exists) {
+      newSelected = selectedModels.filter((m) => m.id !== model.id);
+    } else {
+      newSelected = [...selectedModels, { id: model.id, name: model.name }];
+    }
+    setSelectedModels(newSelected);
+    localStorage.setItem(MODELS_STORAGE, JSON.stringify(newSelected));
+  };
+
+  const filteredModels = allModels
+    .filter(
+      (m) =>
+        m.id.toLowerCase().includes(search.toLowerCase()) ||
+        m.name.toLowerCase().includes(search.toLowerCase())
+    )
+    .sort((a, b) => a.id.localeCompare(b.id));
+
+  return (
+    <>
+      <Header showBack />
+      <div className="settings">
+        <div className="settings-content">
+          <h1>Settings</h1>
+
+          <div className="settings-section">
+            <label className="settings-label" htmlFor="api-key">
+              OpenRouter API Key <span className="settings-hint">(stored locally in browser)</span>
+            </label>
+            <input
+              id="api-key"
+              type="password"
+              className="settings-input"
+              value={apiKey}
+              onChange={(e) => setApiKey(e.target.value)}
+              placeholder="sk-or-..."
+            />
+            <div className="settings-buttons">
+              <button className="settings-button" onClick={handleSave}>
+                {saved ? 'Saved!' : 'Save'}
+              </button>
+              <button
+                className={`settings-button settings-button-test ${testResult === 'success' ? 'success' : ''} ${testResult === 'error' ? 'error' : ''}`}
+                onClick={handleTest}
+                disabled={testing}
+              >
+                {testing ? 'Testing...' : testResult === 'success' ? 'OK!' : testResult === 'error' ? 'Failed' : 'Test'}
+              </button>
+            </div>
+          </div>
+
+          <div className="settings-section">
+            <label className="settings-label">
+              Models <span className="settings-hint">({selectedModels.length} selected)</span>
+            </label>
+
+            {selectedModels.length > 0 && (
+              <div className="selected-models">
+                {selectedModels.map((m) => (
+                  <span key={m.id} className="selected-model-tag">
+                    {m.id}
+                    <button onClick={() => toggleModel(m)}>×</button>
+                  </span>
+                ))}
+              </div>
+            )}
+
+            <button
+              className="settings-button"
+              onClick={handleLoadModels}
+              disabled={loadingModels}
+            >
+              {loadingModels ? 'Loading...' : allModels.length > 0 ? 'Refresh Models' : 'Load Models'}
+            </button>
+
+            {allModels.length > 0 && (
+              <>
+                <input
+                  type="text"
+                  className="settings-input"
+                  placeholder="Search models..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+                <div className="models-list">
+                  {filteredModels.map((model) => (
+                    <label key={model.id} className="model-item">
+                      <input
+                        type="checkbox"
+                        checked={selectedModels.some((m) => m.id === model.id)}
+                        onChange={() => toggleModel(model)}
+                      />
+                      <span className="model-id">{model.id}</span>
+                    </label>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}

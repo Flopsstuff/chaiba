@@ -78,6 +78,9 @@ web_modules/
 .next
 out
 
+# Create React App build output
+/build
+
 # Nuxt.js build / generate output
 .nuxt
 dist
@@ -94,6 +97,7 @@ dist
 # vuepress v2.x temp and cache directory
 .temp
 .cache
+temp/
 
 # Sveltekit cache directory
 .svelte-kit/
@@ -137,3 +141,6 @@ dist
 # Vite logs files
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+
+# ignore gitpmoji directory
+.gitpmoji

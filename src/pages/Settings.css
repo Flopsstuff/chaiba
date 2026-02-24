@@ -1,0 +1,145 @@
+.settings {
+  width: 100%;
+  position: fixed;
+  top: 60px;
+  bottom: 0;
+  overflow-y: auto;
+  box-sizing: border-box;
+  display: flex;
+  justify-content: center;
+  padding: 24px;
+}
+
+.settings-content {
+  width: 100%;
+  max-width: 600px;
+  display: flex;
+  flex-direction: column;
+}
+
+.settings h1 {
+  margin-bottom: 24px;
+}
+
+.settings-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.settings-label {
+  font-weight: 500;
+}
+
+.settings-hint {
+  font-weight: 400;
+  color: #888;
+}
+
+.settings-input {
+  padding: 10px 12px;
+  font-size: 16px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.settings-input:focus {
+  outline: none;
+  border-color: #61dafb;
+}
+
+.settings-buttons {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  margin-bottom: 24px;
+}
+
+.settings-button {
+  padding: 10px 20px;
+  font-size: 16px;
+  background-color: #61dafb;
+  color: #282c34;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.settings-button:hover {
+  background-color: #4fa8c7;
+}
+
+.settings-button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.settings-button-test.success {
+  background-color: #4caf50;
+  color: white;
+}
+
+.settings-button-test.error {
+  background-color: #f44336;
+  color: white;
+}
+
+.settings-section + .settings-section {
+  margin-top: 32px;
+}
+
+.selected-models {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.selected-model-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background: #e3f2fd;
+  border-radius: 4px;
+  font-size: 13px;
+}
+
+.selected-model-tag button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0 2px;
+  color: #666;
+  font-size: 14px;
+}
+
+.selected-model-tag button:hover {
+  color: #f44336;
+}
+
+.models-list {
+  max-height: 300px;
+  overflow-y: auto;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 8px;
+}
+
+.model-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 4px;
+  cursor: pointer;
+}
+
+.model-item:hover {
+  background: #f5f5f5;
+}
+
+.model-id {
+  font-size: 13px;
+  font-family: monospace;
+}
