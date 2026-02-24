@@ -1,3 +1,4 @@
+import { ChessBoard } from '../chess/ChessBoard';
 import './Arena.css';
 
 export function Arena() {
@@ -5,7 +6,7 @@ export function Arena() {
     <main className="arena">
       <div className="arena__content">
         <h3>ARENA</h3>
-        {/* TODO: Arena implementation */}
+        <ChessBoard />
       </div>
     </main>
   );

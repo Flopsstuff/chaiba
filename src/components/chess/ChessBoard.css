@@ -1,0 +1,119 @@
+.chess-board-wrap {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.chess-board__file-labels {
+  display: flex;
+  margin-left: 24px;
+  font-size: 12px;
+  color: #333;
+}
+
+.chess-board__file-label {
+  width: 48px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.chess-board__body {
+  display: flex;
+  align-items: stretch;
+}
+
+.chess-board__rank-labels {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+  width: 24px;
+  flex-shrink: 0;
+  font-size: 12px;
+  color: #333;
+  text-align: center;
+}
+
+.chess-board__rank-label {
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.chess-board {
+  display: flex;
+  flex-direction: column;
+  border: 2px solid #333;
+}
+
+.chess-board__row {
+  display: flex;
+}
+
+.chess-square {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.chess-square--light {
+  background-color: #f0d9b5;
+}
+
+.chess-square--dark {
+  background-color: #b58863;
+}
+
+.chess-square--highlight {
+  position: relative;
+}
+
+.chess-square--highlight::after {
+  content: '';
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background-color: rgba(0, 0, 0, 0.25);
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.chess-square--over {
+  background-color: #a8d8a8;
+}
+
+.chess-piece {
+  font-family: 'DejaVu Serif', 'Apple Symbols', 'Segoe UI Symbol', 'Noto Sans Symbols', sans-serif;
+  font-size: 36px;
+  line-height: 1;
+  font-weight: 400;
+  user-select: none;
+  cursor: grab;
+}
+
+.chess-piece {
+  -webkit-text-stroke: 2px #111;
+  paint-order: stroke fill;
+}
+
+.chess-piece--white {
+  color: #fff;
+}
+
+.chess-piece--black {
+  color: #555;
+}
+
+.chess-piece:active {
+  cursor: grabbing;
+}
+
+.chess-piece--dragging {
+  z-index: 1;
+}

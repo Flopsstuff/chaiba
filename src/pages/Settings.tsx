@@ -128,7 +128,7 @@ export function Settings() {
             </label>
             <input
               id="api-key"
-              type="password"
+              type="text"
               className="settings-input"
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
