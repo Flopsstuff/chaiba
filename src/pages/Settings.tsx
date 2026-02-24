@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Header } from '../components/Header';
+import { ChessPrompts, ChessPromptsData, DEFAULT_PROMPTS } from '../agents/ChessPrompts';
 import './Settings.css';
 
 const API_KEY_STORAGE = 'openrouter_api_key';
@@ -21,6 +22,9 @@ export function Settings() {
   const [loadingModels, setLoadingModels] = useState(false);
   const [search, setSearch] = useState('');
 
+  const [prompts, setPrompts] = useState<ChessPromptsData>(DEFAULT_PROMPTS);
+  const [promptsSaved, setPromptsSaved] = useState(false);
+
   useEffect(() => {
     const storedKey = localStorage.getItem(API_KEY_STORAGE);
     if (storedKey) {
@@ -31,7 +35,22 @@ export function Settings() {
     if (storedModels) {
       setSelectedModels(JSON.parse(storedModels));
     }
+
+    setPrompts(ChessPrompts.loadPrompts());
   }, []);
+
+  const handleSavePrompts = () => {
+    ChessPrompts.savePrompts(prompts);
+    setPromptsSaved(true);
+    setTimeout(() => setPromptsSaved(false), 2000);
+  };
+
+  const handleResetPrompts = () => {
+    setPrompts(DEFAULT_PROMPTS);
+    ChessPrompts.savePrompts(DEFAULT_PROMPTS);
+    setPromptsSaved(true);
+    setTimeout(() => setPromptsSaved(false), 2000);
+  };
 
   const handleSave = () => {
     localStorage.setItem(API_KEY_STORAGE, apiKey);
@@ -195,6 +214,54 @@ export function Settings() {
                 </div>
               </>
             )}
+          </div>
+
+          <div className="settings-section">
+            <label className="settings-label">
+              Prompts <span className="settings-hint">(stored locally in browser)</span>
+            </label>
+
+            <label className="settings-label settings-label--small" htmlFor="prompt-base">
+              Base prompt
+            </label>
+            <textarea
+              id="prompt-base"
+              className="settings-textarea"
+              value={prompts.base}
+              onChange={(e) => setPrompts({ ...prompts, base: e.target.value })}
+              rows={4}
+            />
+
+            <label className="settings-label settings-label--small" htmlFor="prompt-white">
+              White prompt
+            </label>
+            <textarea
+              id="prompt-white"
+              className="settings-textarea"
+              value={prompts.white}
+              onChange={(e) => setPrompts({ ...prompts, white: e.target.value })}
+              rows={2}
+            />
+
+            <label className="settings-label settings-label--small" htmlFor="prompt-black">
+              Black prompt
+            </label>
+            <textarea
+              id="prompt-black"
+              className="settings-textarea"
+              value={prompts.black}
+              onChange={(e) => setPrompts({ ...prompts, black: e.target.value })}
+              rows={2}
+            />
+
+            <div className="settings-buttons">
+              <button className="settings-button" onClick={handleSavePrompts}>
+                {promptsSaved ? 'Saved!' : 'Save Prompts'}
+              </button>
+              <button className="settings-button settings-button--secondary" onClick={handleResetPrompts}>
+                Reset to Defaults
+              </button>
+            </div>
           </div>
         </div>
       </div>

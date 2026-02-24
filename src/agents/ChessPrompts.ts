@@ -8,14 +8,14 @@ export const DEFAULT_PROMPTS = {
   black: `You are playing as Black. Respond to White's moves strategically. Aim for solid defense and counterplay opportunities.`,
 };
 
-interface ChessPromptsData {
+export interface ChessPromptsData {
   base: string;
   white: string;
   black: string;
 }
 
 export class ChessPrompts {
-  private static loadPrompts(): ChessPromptsData {
+  static loadPrompts(): ChessPromptsData {
     const stored = localStorage.getItem(PROMPTS_STORAGE);
     return stored ? JSON.parse(stored) : DEFAULT_PROMPTS;
   }
@@ -24,10 +24,14 @@ export class ChessPrompts {
     localStorage.setItem(PROMPTS_STORAGE, JSON.stringify(prompts));
   }
 
-  static getSystemPrompt(color: ChessColor, customInstructions?: string): string {
+  static getBasePrompt(color: ChessColor): string {
     const prompts = this.loadPrompts();
     const colorPrompt = color === 'white' ? prompts.white : prompts.black;
-    const base = `${prompts.base}\n\n${colorPrompt}`;
+    return `${prompts.base}\n\n${colorPrompt}`;
+  }
+
+  static getSystemPrompt(color: ChessColor, customInstructions?: string): string {
+    const base = this.getBasePrompt(color);
     return customInstructions ? `${base}\n\n${customInstructions}` : base;
   }
 }

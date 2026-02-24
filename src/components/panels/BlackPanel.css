@@ -6,21 +6,17 @@
 }
 
 .black-panel--open {
-  min-width: 200px;
-  width: 200px;
+  min-width: 280px;
+  width: 280px;
 }
 
 .black-panel__content {
-  width: 200px;
+  width: 280px;
   height: 100%;
   padding: 16px;
   background: #e0e0e0;
   border-left: 1px solid #ccc;
   display: flex;
   flex-direction: column;
-}
-
-.black-panel__content h3 {
-  margin: 0 0 12px;
-  font-size: 14px;
+  box-sizing: border-box;
 }

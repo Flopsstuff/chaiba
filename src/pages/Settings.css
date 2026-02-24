@@ -143,3 +143,33 @@
   font-size: 13px;
   font-family: monospace;
 }
+
+.settings-label--small {
+  font-size: 14px;
+  margin-top: 8px;
+}
+
+.settings-textarea {
+  padding: 10px 12px;
+  font-size: 14px;
+  font-family: inherit;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  resize: vertical;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.settings-textarea:focus {
+  outline: none;
+  border-color: #61dafb;
+}
+
+.settings-button--secondary {
+  background-color: #e0e0e0;
+  color: #333;
+}
+
+.settings-button--secondary:hover {
+  background-color: #ccc;
+}
