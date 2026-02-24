@@ -16,9 +16,84 @@
   padding: 16px;
   background: #e0e0e0;
   border-right: 1px solid #ccc;
+  display: flex;
+  flex-direction: column;
 }
 
 .white-panel__content h3 {
   margin: 0 0 12px;
   font-size: 14px;
+}
+
+/* Shared panel chat styles */
+.panel-messages {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.panel-message {
+  font-size: 12px;
+  line-height: 1.4;
+  padding: 4px 6px;
+  border-radius: 4px;
+  background: #fff;
+  word-break: break-word;
+}
+
+.panel-message--system {
+  background: #f5f5dc;
+  font-style: italic;
+}
+
+.panel-message--player {
+  background: #e8f0fe;
+}
+
+.panel-message__sender {
+  font-weight: 600;
+  margin-right: 4px;
+  font-size: 10px;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+
+.panel-message__move {
+  display: inline-block;
+  font-weight: 700;
+  font-family: monospace;
+  background: #d4edda;
+  padding: 1px 4px;
+  border-radius: 2px;
+  margin-right: 4px;
+}
+
+.panel-message__text {
+  display: block;
+  margin-top: 2px;
+}
+
+.panel-status--thinking {
+  animation: pulse 1s infinite;
+}
+
+.panel-status--error {
+  color: #d32f2f;
+  font-weight: 700;
+}
+
+.panel-error {
+  font-size: 11px;
+  color: #d32f2f;
+  background: #ffeaea;
+  padding: 4px 6px;
+  border-radius: 4px;
+  margin-bottom: 8px;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
 }

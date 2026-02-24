@@ -16,6 +16,8 @@
   padding: 16px;
   background: #e0e0e0;
   border-left: 1px solid #ccc;
+  display: flex;
+  flex-direction: column;
 }
 
 .black-panel__content h3 {
