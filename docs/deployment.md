@@ -17,7 +17,7 @@ The app is deployed to GitHub Pages at:
 ### Build Steps
 
 1. Checkout code
-2. Setup Node.js v20
+2. Setup Node.js v23.8.0
 3. `npm ci` — install dependencies
 4. `npm run build` — build with:
    - `PUBLIC_URL=/chaiba` — assets served from `/chaiba/` subdirectory
@@ -42,5 +42,5 @@ npm test           # Run tests
 
 ## Prerequisites
 
-- Node.js v20+
+- Node.js v23+
 - OpenRouter API key (configured in the app's Settings page)
