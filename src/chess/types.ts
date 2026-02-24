@@ -25,3 +25,30 @@ export function getStartingPosition(): Board {
   }
   return board;
 }
+
+export interface CastlingRights {
+  K: boolean;
+  Q: boolean;
+  k: boolean;
+  q: boolean;
+}
+
+export interface GameState {
+  board: Board;
+  activeColor: PieceColor;
+  castlingRights: CastlingRights;
+  enPassantSquare: number | null;
+  halfmoveClock: number;
+  fullmoveNumber: number;
+}
+
+export function getStartingGameState(): GameState {
+  return {
+    board: getStartingPosition(),
+    activeColor: 'white',
+    castlingRights: { K: true, Q: true, k: true, q: true },
+    enPassantSquare: null,
+    halfmoveClock: 0,
+    fullmoveNumber: 1,
+  };
+}

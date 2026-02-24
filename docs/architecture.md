@@ -42,8 +42,9 @@ src/
 │   │   └── GameChat.tsx/.css    # Chat interface
 │   └── panels/
 │       ├── Arena.tsx/.css       # Central game area
-│       ├── WhitePanel.tsx/.css  # White player panel
-│       ├── BlackPanel.tsx/.css  # Black player panel
+│       ├── AgentCard.tsx/.css   # Reusable agent config + messages card
+│       ├── WhitePanel.tsx/.css  # White player panel (wraps AgentCard)
+│       ├── BlackPanel.tsx/.css  # Black player panel (wraps AgentCard)
 │       └── MessageBubble.tsx    # Chat message display
 ├── hooks/
 │   └── useChessPlayer.ts   # React hook wrapping ChessPlayer
@@ -76,14 +77,17 @@ App
     ├── Home
     │   ├── Header
     │   │   └── GitHubLogo
+    │   ├── Toolbar (toggle buttons + notation area)
     │   ├── WhitePanel (left, collapsible)
-    │   │   └── MessageBubble[]
+    │   │   └── AgentCard (model select, prompts, messages)
+    │   │       └── MessageBubble[]
     │   ├── Arena (center)
     │   │   ├── ChessBoard
     │   │   │   └── ChessSquare[] + ChessPiece[]
     │   │   └── GameChat
     │   └── BlackPanel (right, collapsible)
-    │       └── MessageBubble[]
+    │       └── AgentCard (model select, prompts, messages)
+    │           └── MessageBubble[]
     └── Settings
         └── Header
 ```
@@ -109,10 +113,12 @@ See [ai-integration.md](./ai-integration.md) for details.
 
 ## Layout
 
-The Home page uses a responsive 3-column flexbox layout:
+The Home page uses a responsive 3-column flexbox layout with a toolbar above:
 
 ```
-┌──────────┬───────────────┬──────────┐
+┌─────────────────────────────────────┐
+│  ◀ White │  Notation area  │ Black ▶│  ← Toolbar
+├──────────┬───────────────┬──────────┤
 │          │               │          │
 │  White   │    Arena      │  Black   │
 │  Panel   │  (ChessBoard  │  Panel   │
@@ -121,7 +127,7 @@ The Home page uses a responsive 3-column flexbox layout:
 └──────────┴───────────────┴──────────┘
 ```
 
-At the 768px breakpoint, side panels collapse into toggleable overlays.
+The toolbar contains toggle buttons for each side panel and a central notation area for game moves. Side panels are toggled via the toolbar buttons. At the 768px breakpoint, panels start collapsed.
 
 ## Key Architectural Decisions
 
@@ -131,3 +137,4 @@ At the 768px breakpoint, side panels collapse into toggleable overlays.
 4. **Tool-based moves** — LLM returns chess moves via Vercel AI SDK tool calls, not free text parsing
 5. **Class + hook pattern** — `ChessPlayer` class holds logic; `useChessPlayer` hook bridges it to React rendering
 6. **Component-scoped CSS** — each component has a paired CSS file, no CSS-in-JS overhead
+7. **AgentCard abstraction** — shared `AgentCard` component handles model selection, prompt display, and message rendering for both white and black panels, reducing duplication

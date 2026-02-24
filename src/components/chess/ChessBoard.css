@@ -2,6 +2,7 @@
   display: inline-flex;
   flex-direction: column;
   align-items: flex-start;
+  margin: 0 auto;
 }
 
 .chess-board__file-labels {
@@ -12,7 +13,7 @@
 }
 
 .chess-board__file-label {
-  width: 48px;
+  width: 44px;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -35,7 +36,7 @@
 }
 
 .chess-board__rank-label {
-  height: 48px;
+  height: 44px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -52,8 +53,8 @@
 }
 
 .chess-square {
-  width: 48px;
-  height: 48px;
+  width: 44px;
+  height: 44px;
   display: flex;
   align-items: center;
   justify-content: center;

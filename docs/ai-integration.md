@@ -101,7 +101,26 @@ function useChessPlayer(config: PlayerConfig): {
 
 **Location:** `src/agents/ChessPrompts.ts`
 
-Configurable system prompts define how each player behaves. Custom prompts can be saved in localStorage under `chess_prompts`.
+Prompts are structured as a base prompt (shared by both players) plus a color-specific prompt:
+
+```typescript
+interface ChessPromptsData {
+  base: string;   // Shared rules and tool usage instructions
+  white: string;  // White-specific strategy guidance
+  black: string;  // Black-specific strategy guidance
+}
+```
+
+The `ChessPrompts` class provides static methods:
+
+| Method | Description |
+|--------|-------------|
+| `loadPrompts()` | Loads prompts from localStorage (falls back to `DEFAULT_PROMPTS`) |
+| `savePrompts(prompts)` | Persists prompts to localStorage |
+| `getBasePrompt(color)` | Returns combined base + color prompt |
+| `getSystemPrompt(color, custom?)` | Returns full system prompt with optional custom instructions |
+
+Custom prompts can be edited on the Settings page and are stored in localStorage under `chess_prompts`. The `AgentCard` component also allows per-agent custom instructions that are appended to the base prompt.
 
 ## Data Flow: AI Move
 

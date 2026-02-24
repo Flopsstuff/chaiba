@@ -1,17 +1,17 @@
 import { DndContext, type DragEndEvent, type DragStartEvent, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { useCallback, useState } from 'react';
 import { getLegalMoves } from '../../chess/rules';
-import { getStartingPosition, type Board } from '../../chess/types';
+import { getStartingGameState, type GameState } from '../../chess/types';
 import { ChessSquare } from './ChessSquare';
 import './ChessBoard.css';
 
 export function ChessBoard() {
-  const [board, setBoard] = useState<Board>(getStartingPosition);
+  const [gameState, setGameState] = useState<GameState>(getStartingGameState);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
 
   const fromIndex = selectedIndex ?? (activeId != null ? parseInt(activeId, 10) : null);
-  const validMoves = fromIndex != null && fromIndex >= 0 ? getLegalMoves(board, fromIndex) : [];
+  const validMoves = fromIndex != null && fromIndex >= 0 ? getLegalMoves(gameState, fromIndex) : [];
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
@@ -20,9 +20,9 @@ export function ChessBoard() {
   }, []);
 
   const handleSelect = useCallback((index: number) => {
-    const piece = board[index];
+    const piece = gameState.board[index];
     setSelectedIndex(piece ? index : null);
-  }, [board]);
+  }, [gameState.board]);
 
   const handleDragEnd = useCallback(({ active, over }: DragEndEvent) => {
     setActiveId(null);
@@ -31,14 +31,14 @@ export function ChessBoard() {
     const fromIndex = parseInt(active.id as string, 10);
     const toIndex = parseInt(over.id as string, 10);
     if (fromIndex === toIndex) return;
-    const piece = board[fromIndex];
+    const piece = gameState.board[fromIndex];
     if (!piece) return;
 
-    const next = [...board];
-    next[fromIndex] = null;
-    next[toIndex] = piece;
-    setBoard(next);
-  }, [board]);
+    const nextBoard = [...gameState.board];
+    nextBoard[fromIndex] = null;
+    nextBoard[toIndex] = piece;
+    setGameState((prev) => ({ ...prev, board: nextBoard }));
+  }, [gameState.board]);
 
   // White at bottom: render rank 7 first (top), rank 0 last (bottom)
   const rows: number[][] = [];
@@ -72,7 +72,7 @@ export function ChessBoard() {
                   <ChessSquare
                     key={idx}
                     index={idx}
-                    piece={board[idx]}
+                    piece={gameState.board[idx]}
                     isHighlight={validMoves.includes(idx)}
                     onSelect={handleSelect}
                   />
