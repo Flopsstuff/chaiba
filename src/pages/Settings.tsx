@@ -24,6 +24,7 @@ export function Settings() {
 
   const [prompts, setPrompts] = useState<ChessPromptsData>(DEFAULT_PROMPTS);
   const [promptsSaved, setPromptsSaved] = useState(false);
+  const [sendContext, setSendContext] = useState(true);
 
   useEffect(() => {
     const storedKey = localStorage.getItem(API_KEY_STORAGE);
@@ -37,6 +38,9 @@ export function Settings() {
     }
 
     setPrompts(ChessPrompts.loadPrompts());
+
+    const storedContext = localStorage.getItem('send_context_message');
+    setSendContext(storedContext !== 'false');
   }, []);
 
   const handleSavePrompts = () => {
@@ -262,6 +266,21 @@ export function Settings() {
                 Reset to Defaults
               </button>
             </div>
+          </div>
+
+          <div className="settings-section">
+            <label className="settings-label">Game</label>
+            <label className="settings-checkbox">
+              <input
+                type="checkbox"
+                checked={sendContext}
+                onChange={(e) => {
+                  setSendContext(e.target.checked);
+                  localStorage.setItem('send_context_message', String(e.target.checked));
+                }}
+              />
+              Send board context (FEN + move history) before each move
+            </label>
           </div>
         </div>
       </div>

@@ -6,6 +6,8 @@ import { BlackPanel } from '../components/panels/BlackPanel';
 import { ChessEngine } from '../chess/engine';
 import type { GameState } from '../chess/types';
 import type { GameChatHandle } from '../components/chat/GameChat';
+import type { AgentCardHandle } from '../components/panels/AgentCard';
+import type { ChessColor, Message } from '../types';
 import './Home.css';
 
 const MOBILE_BREAKPOINT = 768;
@@ -13,8 +15,12 @@ const MOBILE_BREAKPOINT = 768;
 export function Home() {
   const engineRef = useRef<ChessEngine>(new ChessEngine());
   const chatRef = useRef<GameChatHandle>(null);
+  const whiteRef = useRef<AgentCardHandle>(null);
+  const blackRef = useRef<AgentCardHandle>(null);
   const [gameState, setGameState] = useState<GameState>(() => engineRef.current.getState());
   const [sanMoves, setSanMoves] = useState<string[]>([]);
+  const [sharedMessages, setSharedMessages] = useState<Message[]>([]);
+  const [thinkingColor, setThinkingColor] = useState<ChessColor | null>(null);
   const [whiteOpen, setWhiteOpen] = useState(false);
   const [blackOpen, setBlackOpen] = useState(false);
 
@@ -38,6 +44,107 @@ export function Home() {
     }
   }, []);
 
+  const handleAgentMove = useCallback(async (color: ChessColor) => {
+    const engine = engineRef.current;
+    const state = engine.getState();
+
+    if (state.activeColor !== color) {
+      chatRef.current?.addSystemMessage(`It's not ${color}'s turn.`);
+      return;
+    }
+
+    const agentRef = color === 'white' ? whiteRef : blackRef;
+    const agent = agentRef.current;
+    if (!agent) {
+      chatRef.current?.addSystemMessage(`${color} agent not ready.`);
+      return;
+    }
+
+    setThinkingColor(color);
+
+    // Build context message with current FEN and move history (if enabled)
+    const sendContext = localStorage.getItem('send_context_message') !== 'false';
+    let messagesForAgent = [...sharedMessages];
+
+    if (sendContext) {
+      const fen = engine.getFEN();
+      const san = engine.getSAN();
+      const moveHistory = san.length > 0 ? `Moves so far: ${san.join(' ')}` : 'No moves yet.';
+      const contextMsg: Message = {
+        sender: 'system',
+        content: `Current position (FEN): ${fen}\n${moveHistory}\nIt is ${color}'s turn. Please make your move.`,
+      };
+      messagesForAgent = [...messagesForAgent, contextMsg];
+    }
+
+    try {
+      const result = await agent.generate(messagesForAgent);
+
+      // Record agent response in shared history
+      const agentMessage: Message = {
+        sender: 'agent',
+        agentId: agent.id,
+        agentName: agent.name,
+        content: result.text,
+        toolCalls: result.toolCalls.length > 0 ? result.toolCalls : undefined,
+      };
+
+      const newMessages = [...messagesForAgent, agentMessage];
+
+      // Process make-move tool call
+      const moveCall = result.toolCalls.find((tc) => tc.tool === 'make-move');
+      if (moveCall) {
+        const moveSan = moveCall.args.move as string;
+        const moveResult = engine.moveSAN(moveSan);
+
+        let toolResultContent: string;
+        if (moveResult.success) {
+          setGameState(engine.getState());
+          const updatedSan = engine.getSAN();
+          setSanMoves(updatedSan);
+          const lastMove = updatedSan[updatedSan.length - 1];
+          const moveNum = Math.ceil(updatedSan.length / 2);
+          const side = updatedSan.length % 2 === 1 ? 'White' : 'Black';
+          toolResultContent = `Move ${lastMove} accepted.`;
+          chatRef.current?.addSystemMessage(`${moveNum}. ${side}: ${lastMove}`);
+        } else {
+          toolResultContent = `Invalid move "${moveSan}": ${moveResult.error}`;
+          chatRef.current?.addSystemMessage(`${agent.name} tried invalid move: ${moveSan} — ${moveResult.error}`);
+        }
+
+        const toolResultMessage: Message = {
+          sender: 'moderator',
+          agentId: agent.id,
+          content: toolResultContent,
+          toolResultFor: {
+            callId: moveCall.id,
+            toolName: moveCall.tool,
+          },
+        };
+
+        newMessages.push(toolResultMessage);
+      } else {
+        // Agent responded without making a move
+        chatRef.current?.addSystemMessage(`${agent.name} responded without making a move.`);
+      }
+
+      setSharedMessages(newMessages);
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      chatRef.current?.addSystemMessage(`${agent.name} error: ${errorMsg}`);
+    } finally {
+      setThinkingColor(null);
+    }
+  }, [sharedMessages]);
+
+  const handleMoveWhite = useCallback(() => {
+    handleAgentMove('white');
+  }, [handleAgentMove]);
+
+  const handleMoveBlack = useCallback(() => {
+    handleAgentMove('black');
+  }, [handleAgentMove]);
+
   const handleReset = useCallback((fisher?: boolean) => {
     engineRef.current.reset(fisher);
     const state = engineRef.current.getState();
@@ -45,6 +152,7 @@ export function Home() {
     const mode = fisher ? 'Chess960 (Fischer Random)' : 'Standard';
     const fen = engineRef.current.getFEN();
     setSanMoves([]);
+    setSharedMessages([]);
     chatRef.current?.clear();
     chatRef.current?.addSystemMessage(`Game reset — Mode: ${mode} FEN: ${fen}`);
   }, []);
@@ -70,7 +178,12 @@ export function Home() {
 
   return (
     <>
-      <Header onReset={handleReset} />
+      <Header
+        onReset={handleReset}
+        onMoveWhite={handleMoveWhite}
+        onMoveBlack={handleMoveBlack}
+        thinkingColor={thinkingColor}
+      />
       <div className="home">
         <div className="toolbar">
           <button
@@ -102,9 +215,9 @@ export function Home() {
           </button>
         </div>
         <div className="home__layout">
-          <WhitePanel isOpen={showWhite} />
+          <WhitePanel ref={whiteRef} isOpen={showWhite} messages={sharedMessages} />
           <Arena ref={chatRef} gameState={gameState} onMove={handleMove} />
-          <BlackPanel isOpen={showBlack} />
+          <BlackPanel ref={blackRef} isOpen={showBlack} messages={sharedMessages} />
         </div>
       </div>
     </>

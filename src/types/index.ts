@@ -2,7 +2,7 @@ export type ChessColor = 'white' | 'black';
 
 export type PlayerStatus = 'idle' | 'thinking' | 'error';
 
-export type MessageSender = 'system' | 'player' | 'user';
+export type MessageSender = 'system' | 'moderator' | 'agent';
 
 export interface ToolCallData {
   id: string;
@@ -12,8 +12,14 @@ export interface ToolCallData {
 
 export interface Message {
   sender: MessageSender;
+  agentId?: string;
+  agentName?: string;
   content: string;
   toolCalls?: ToolCallData[];
+  toolResultFor?: {
+    callId: string;
+    toolName: string;
+  };
 }
 
 export interface PlayerConfig {

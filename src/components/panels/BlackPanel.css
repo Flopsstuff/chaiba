@@ -13,9 +13,6 @@
 .black-panel__content {
   width: 280px;
   height: 100%;
-  padding: 16px;
-  background: #e0e0e0;
-  border-left: 1px solid #ccc;
   display: flex;
   flex-direction: column;
   box-sizing: border-box;

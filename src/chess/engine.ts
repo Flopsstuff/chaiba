@@ -567,10 +567,11 @@ export class ChessEngine {
     // Work backwards from the end to find target square
     let promoStr = '';
     let core = cleaned.slice(pos);
-    const promoMatch = core.match(/=([QRBNqrbn])$/);
+    // Support both "=Q" and "Q" promotion suffixes (e.g. b1=Q or b1Q)
+    const promoMatch = core.match(/=([QRBNqrbn])$/) || core.match(/([QRBNqrbn])$/);
     if (promoMatch) {
       promoStr = promoMatch[1];
-      core = core.slice(0, -2);
+      core = core.slice(0, -promoMatch[0].length);
     }
 
     // Remove capture marker

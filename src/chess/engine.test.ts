@@ -446,6 +446,20 @@ describe('moveSAN', () => {
     expect(engine.getState().board[60]).toEqual({ type: 'queen', color: 'white' });
   });
 
+  it('plays promotion without = sign (e.g. e8Q)', () => {
+    const engine = new ChessEngine();
+    engine.setFEN('8/4P3/8/8/8/8/8/K6k w - - 0 1');
+    expect(engine.moveSAN('e8Q')).toEqual({ success: true });
+    expect(engine.getState().board[60]).toEqual({ type: 'queen', color: 'white' });
+  });
+
+  it('plays promotion with capture without = sign (e.g. exd8Q)', () => {
+    const engine = new ChessEngine();
+    engine.setFEN('3r4/4P3/8/8/8/8/8/K6k w - - 0 1');
+    expect(engine.moveSAN('exd8Q')).toEqual({ success: true });
+    expect(engine.getState().board[59]).toEqual({ type: 'queen', color: 'white' });
+  });
+
   it('plays promotion with capture', () => {
     const engine = new ChessEngine();
     engine.setFEN('3r4/4P3/8/8/8/8/8/K6k w - - 0 1');
