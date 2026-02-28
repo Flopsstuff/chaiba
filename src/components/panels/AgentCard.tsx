@@ -29,9 +29,11 @@ function getAvailableModels(): { id: string; name?: string }[] {
 }
 
 export interface AgentCardHandle {
-  generate: (messages: Message[]) => Promise<{ text: string; toolCalls: ToolCallData[] }>;
+  generate: (messages: Message[], opponent?: { name: string; color: ChessColor }) => Promise<{ text: string; toolCalls: ToolCallData[] }>;
+  rerollName: () => void;
   id: string;
   name: string;
+  color: ChessColor;
   status: PlayerStatus;
 }
 
@@ -62,29 +64,54 @@ export const AgentCard = forwardRef<AgentCardHandle, AgentCardProps>(
       systemPrompt,
     }), [agentName, color, selectedModel, systemPrompt]);
 
-    const { id, name, status, error, generate } = useChessPlayer(config);
-
-    useImperativeHandle(ref, () => ({
-      generate,
-      id,
-      name,
-      status,
-    }), [generate, id, name, status]);
+    const { id, name, status, error, messageLog, generate } = useChessPlayer(config);
+    const [showLog, setShowLog] = useState(false);
 
     const rerollName = useCallback(() => {
       setAgentName(randomName());
     }, []);
 
+    useImperativeHandle(ref, () => ({
+      generate,
+      rerollName,
+      id,
+      name,
+      color,
+      status,
+    }), [generate, rerollName, id, name, color, status]);
+
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
-    // Filter messages for display: system, moderator, own agent, opponent agent
+    const getCallCost = useCallback((entry: { messages: unknown[] }): number | null => {
+      const last = entry.messages[entry.messages.length - 1] as Record<string, unknown> | undefined;
+      if (!last) return null;
+      const usage = last.usage as Record<string, unknown> | undefined;
+      const raw = usage?.raw as Record<string, unknown> | undefined;
+      const cost = raw?.cost;
+      return typeof cost === 'number' ? cost : null;
+    }, []);
+
+    const totalCost = useMemo(() => {
+      let sum = 0;
+      for (const entry of messageLog) {
+        const c = getCallCost(entry);
+        if (c !== null) sum += c;
+      }
+      return sum;
+    }, [messageLog, getCallCost]);
+
+    // Filter messages for display
     const displayMessages = useMemo(() => {
       return messages.filter((m) => {
+        // Skip system context messages meant for the opponent
+        if (m.sender === 'system' && m.agentId && m.agentId !== id) return false;
+        // Skip opponent's tool results (shown as move in their bubble already)
+        if (m.toolResultFor && m.agentId !== id) return false;
         if (m.sender === 'system' || m.sender === 'moderator') return true;
         if (m.sender === 'agent') return true;
         return false;
       });
-    }, [messages]);
+    }, [messages, id]);
 
     useEffect(() => {
       const el = messagesEndRef.current;
@@ -99,14 +126,23 @@ export const AgentCard = forwardRef<AgentCardHandle, AgentCardProps>(
           <div className="agent-card__name-row">
             <ColorSpinner color={color} spinning={status === 'thinking'} />
             <span className="agent-card__name">{agentName}</span>
-            <button
-              className="agent-card__reroll"
-              onClick={rerollName}
-              title="Random name"
-            >
-              &#x21bb;
-            </button>
+            {messages.length === 0 && (
+              <button
+                className="agent-card__reroll"
+                onClick={rerollName}
+                title="Random name"
+              >
+                &#x21bb;
+              </button>
+            )}
             {status === 'error' && <span className="agent-card__status agent-card__status--error">!</span>}
+            <button
+              className="agent-card__info"
+              onClick={() => setShowLog(true)}
+              title="Message log"
+            >
+              &#x24D8;
+            </button>
           </div>
         </div>
 
@@ -119,6 +155,7 @@ export const AgentCard = forwardRef<AgentCardHandle, AgentCardProps>(
               className="agent-card__select"
               value={selectedModel}
               onChange={e => setSelectedModel(e.target.value)}
+              disabled={messages.length > 0}
             >
               {availableModels.map(m => (
                 <option key={m.id} value={m.id}>
@@ -160,6 +197,68 @@ export const AgentCard = forwardRef<AgentCardHandle, AgentCardProps>(
             </div>
           )}
         </div>
+
+        {showLog && (
+          <div className="agent-log-overlay" onClick={() => setShowLog(false)}>
+            <div className="agent-log" onClick={(e) => e.stopPropagation()}>
+              <div className="agent-log__header">
+                <span className="agent-log__title">Message Log: {agentName} ({color}) — {messageLog.length} calls{totalCost > 0 ? ` · $${totalCost.toFixed(4)}` : ''}</span>
+                <button className="agent-log__close" onClick={() => setShowLog(false)}>&times;</button>
+              </div>
+              <div className="agent-log__content">
+                {messageLog.length === 0 && (
+                  <div className="agent-log__empty">No messages yet.</div>
+                )}
+                {messageLog.map((entry, ci) => (
+                  <details key={ci} className="agent-log__call">
+                    <summary className="agent-log__call-summary">
+                      Call #{ci + 1} — {new Date(entry.timestamp).toLocaleTimeString()}
+                      <span className="agent-log__call-count">{entry.messages.length} msgs</span>
+                      {(() => { const c = getCallCost(entry); return c !== null ? <span className="agent-log__call-cost">${c.toFixed(4)}</span> : null; })()}
+                      <span
+                        role="button"
+                        tabIndex={0}
+                        className="agent-log__copy"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          e.preventDefault();
+                          navigator.clipboard.writeText(JSON.stringify(entry.messages, null, 2));
+                          const el = e.currentTarget;
+                          el.textContent = 'Copied';
+                          setTimeout(() => { el.textContent = 'Copy'; }, 1500);
+                        }}
+                      >
+                        Copy
+                      </span>
+                    </summary>
+                    <div className="agent-log__call-messages">
+                      {entry.messages.map((msg, mi) => {
+                        const m = msg as Record<string, unknown>;
+                        const role = String(m.role || 'unknown');
+                        const preview = role === 'system'
+                          ? (String(m.content || '')).slice(0, 60) + '...'
+                          : role === 'assistant' && m.toolCalls
+                            ? `tool: ${JSON.stringify(m.toolCalls)}`
+                            : (String(m.content || m.text || '')).slice(0, 60);
+                        return (
+                          <details key={mi} className="agent-log__msg">
+                            <summary className="agent-log__msg-summary">
+                              <span className={`agent-log__role agent-log__role--${role}`}>{role}</span>
+                              <span className="agent-log__preview">{preview}</span>
+                            </summary>
+                            <pre className="agent-log__msg-body">
+                              {JSON.stringify(msg, null, 2)}
+                            </pre>
+                          </details>
+                        );
+                      })}
+                    </div>
+                  </details>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }

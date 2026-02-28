@@ -1,13 +1,19 @@
 import { useState, useCallback, useRef } from 'react';
 import { ChessPlayer } from '../agents/ChessPlayer';
-import { PlayerConfig, PlayerStatus, Message, ToolCallData } from '../types';
+import { ChessColor, PlayerConfig, PlayerStatus, Message, ToolCallData } from '../types';
+
+export interface LogEntry {
+  timestamp: number;
+  messages: unknown[];
+}
 
 export interface UseChessPlayerReturn {
   id: string;
   name: string;
   status: PlayerStatus;
   error: string | null;
-  generate: (messages: Message[]) => Promise<{ text: string; toolCalls: ToolCallData[] }>;
+  messageLog: LogEntry[];
+  generate: (messages: Message[], opponent?: { name: string; color: ChessColor }) => Promise<{ text: string; toolCalls: ToolCallData[] }>;
 }
 
 export function useChessPlayer(config: PlayerConfig): UseChessPlayerReturn {
@@ -22,21 +28,29 @@ export function useChessPlayer(config: PlayerConfig): UseChessPlayerReturn {
 
   const [status, setStatus] = useState<PlayerStatus>('idle');
   const [error, setError] = useState<string | null>(null);
+  const [messageLog, setMessageLog] = useState<LogEntry[]>([]);
 
-  const id = getPlayer().id;
-  const name = getPlayer().name;
+  const player = getPlayer();
+  player.name = config.name;
+  player.model = config.model;
+  player.systemPrompt = config.systemPrompt;
 
-  const generate = useCallback(async (messages: Message[]) => {
+  const id = player.id;
+  const name = player.name;
+
+  const generate = useCallback(async (messages: Message[], opponent?: { name: string; color: ChessColor }) => {
     const player = getPlayer();
     setStatus('thinking');
     setError(null);
 
     try {
-      const result = await player.generate(messages);
+      const result = await player.generate(messages, opponent);
+      setMessageLog([...player.messageLog]);
       setStatus('idle');
       return result;
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
+      setMessageLog([...getPlayer().messageLog]);
       setStatus('error');
       setError(msg);
       throw err;
@@ -44,5 +58,5 @@ export function useChessPlayer(config: PlayerConfig): UseChessPlayerReturn {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  return { id, name, status, error, generate };
+  return { id, name, status, error, messageLog, generate };
 }

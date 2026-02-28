@@ -1,19 +1,20 @@
 import { generateText, tool, type ModelMessage } from 'ai';
 import { createOpenRouter } from '@openrouter/ai-sdk-provider';
 import { z } from 'zod';
-import { PlayerConfig, PlayerStatus, Message, ToolCallData, ChessColor } from '../types';
+import { PlayerConfig, PlayerStatus, Message, ToolCallData, ChessColor, MoveCommand } from '../types';
 
 const API_KEY_STORAGE = 'openrouter_api_key';
 
 export class ChessPlayer {
   readonly id: string;
-  readonly name: string;
+  name: string;
   readonly color: ChessColor;
-  readonly model: string;
-  readonly systemPrompt: string;
+  model: string;
+  systemPrompt: string;
 
   private _status: PlayerStatus = 'idle';
   private _error: string | null = null;
+  private _messageLog: { timestamp: number; messages: unknown[] }[] = [];
   private openrouter: ReturnType<typeof createOpenRouter>;
 
   constructor(config: PlayerConfig) {
@@ -35,6 +36,14 @@ export class ChessPlayer {
     return this._error;
   }
 
+  get messageLog(): { timestamp: number; messages: unknown[] }[] {
+    return this._messageLog;
+  }
+
+  clearLog(): void {
+    this._messageLog = [];
+  }
+
   private get tools() {
     return {
       'make-move': tool({
@@ -48,10 +57,13 @@ export class ChessPlayer {
   }
 
   // Converts internal messages to OpenRouter messages adds system prompt and initial messages
-  private convertMessages(messages: Message[]): ModelMessage[] {
+  private convertMessages(messages: Message[], opponent?: { name: string; color: ChessColor }): ModelMessage[] {
+    const opponentInfo = opponent
+      ? ` Your opponent is ${opponent.name}, playing ${opponent.color}.`
+      : '';
     const result: ModelMessage[] = [
-      { role: 'user', content: `Chess game started. You are ${this.name}, playing ${this.color}. Make your moves using the 'make-move' tool.` },
-      { role: 'assistant', content: `I am ${this.name}, playing ${this.color}. I will use the 'make-move' tool to submit my moves.` },
+      { role: 'user', content: `[SYSTEM]: Chess game started. You are ${this.name}, playing ${this.color}.${opponentInfo} Make your moves using the 'make-move' tool after ${MoveCommand}. Confirm your name and color and your ready to play.` },
+      { role: 'assistant', content: `I am ${this.name}, playing ${this.color}. I will use the 'make-move' tool to submit my moves after ${MoveCommand}.` },
     ];
 
     for (const m of messages) {
@@ -70,6 +82,20 @@ export class ChessPlayer {
             },
           ],
         });
+        continue;
+      }
+
+      // Opponent's tool result → adapt to "Opponent played XXX"
+      if (m.toolResultFor && m.agentId !== this.id) {
+        const moveMatch = m.content.match(/^Move\s+(\S+)\s+accepted/);
+        if (moveMatch) {
+          result.push({ role: 'user', content: `[SYSTEM]: Opponent played ${moveMatch[1]}.` });
+        }
+        continue;
+      }
+
+      // Skip opponent's context message (system with another agent's ID)
+      if (m.sender === 'system' && m.agentId && m.agentId !== this.id) {
         continue;
       }
 
@@ -98,14 +124,20 @@ export class ChessPlayer {
         continue;
       }
 
-      // Other messages → user role with label
+      // Opponent's agent messages — show text without name
+      if (m.sender === 'agent' && m.agentId !== this.id) {
+        if (m.content) {
+          result.push({ role: 'user', content: `[@${m.agentName || 'OPPONENT'}]: ${m.content}` });
+        }
+        continue;
+      }
+
+      // Moderator and generic system messages
       let label: string;
       if (m.sender === 'system') {
         label = '[SYSTEM]';
-      } else if (m.sender === 'moderator') {
-        label = '[MODERATOR]';
       } else {
-        label = `[@${m.agentName || 'OPPONENT'}]`;
+        label = '[MODERATOR]';
       }
       result.push({ role: 'user', content: `${label}: ${m.content}` });
     }
@@ -142,7 +174,7 @@ export class ChessPlayer {
     });
   }
 
-  async generate(messages: Message[]): Promise<{ text: string; toolCalls: ToolCallData[] }> {
+  async generate(messages: Message[], opponent?: { name: string; color: ChessColor }): Promise<{ text: string; toolCalls: ToolCallData[] }> {
     this._status = 'thinking';
     this._error = null;
 
@@ -150,7 +182,7 @@ export class ChessPlayer {
       if (!localStorage.getItem(API_KEY_STORAGE)) {
         throw new Error('OpenRouter API key not set. Configure in Settings.');
       }
-      const coreMessages = this.withAnthropicPromptCache(this.convertMessages(messages));
+      const coreMessages = this.withAnthropicPromptCache(this.convertMessages(messages, opponent));
 
       const result = await generateText({
         model: this.openrouter(this.model),
@@ -174,6 +206,21 @@ export class ChessPlayer {
       }
 
       const responseText = result.text || '';
+
+      // Build log entry with request + response
+      const responseEntry: Record<string, unknown> = { role: 'assistant' };
+      if (responseText) responseEntry.text = responseText;
+      if (toolCalls.length > 0) responseEntry.toolCalls = toolCalls;
+      if (result.usage) responseEntry.usage = result.usage;
+      this._messageLog.push({
+        timestamp: Date.now(),
+        messages: [
+          { role: 'system', content: this.systemPrompt },
+          ...coreMessages,
+          responseEntry,
+        ],
+      });
+
       this._status = 'idle';
       return { text: responseText, toolCalls };
     } catch (err) {

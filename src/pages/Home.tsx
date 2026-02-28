@@ -7,6 +7,7 @@ import { ChessEngine } from '../chess/engine';
 import type { GameState } from '../chess/types';
 import type { GameChatHandle } from '../components/chat/GameChat';
 import type { AgentCardHandle } from '../components/panels/AgentCard';
+import { MoveCommand } from '../types';
 import type { ChessColor, Message } from '../types';
 import './Home.css';
 
@@ -23,6 +24,7 @@ export function Home() {
   const [thinkingColor, setThinkingColor] = useState<ChessColor | null>(null);
   const [whiteOpen, setWhiteOpen] = useState(false);
   const [blackOpen, setBlackOpen] = useState(false);
+  const notationRef = useRef<HTMLDivElement>(null);
 
   const handleMove = useCallback((from: number, to: number) => {
     const engine = engineRef.current;
@@ -72,13 +74,26 @@ export function Home() {
       const moveHistory = san.length > 0 ? `Moves so far: ${san.join(' ')}` : 'No moves yet.';
       const contextMsg: Message = {
         sender: 'system',
-        content: `Current position (FEN): ${fen}\n${moveHistory}\nIt is ${color}'s turn. Please make your move.`,
+        agentId: agent.id,
+        content: `Current position (FEN): ${fen}\n${moveHistory}\nIt is ${color}'s turn. ${MoveCommand}.`,
+      };
+      messagesForAgent = [...messagesForAgent, contextMsg];
+    } else {
+      const contextMsg: Message = {
+        sender: 'system',
+        agentId: agent.id,
+        content: `It is ${color}'s turn. ${MoveCommand}.`,
       };
       messagesForAgent = [...messagesForAgent, contextMsg];
     }
 
+    const opponentRef = color === 'white' ? blackRef : whiteRef;
+    const opponent = opponentRef.current
+      ? { name: opponentRef.current.name, color: opponentRef.current.color }
+      : undefined;
+
     try {
-      const result = await agent.generate(messagesForAgent);
+      const result = await agent.generate(messagesForAgent, opponent);
 
       // Record agent response in shared history
       const agentMessage: Message = {
@@ -88,6 +103,11 @@ export function Home() {
         content: result.text,
         toolCalls: result.toolCalls.length > 0 ? result.toolCalls : undefined,
       };
+
+      // Send agent's text to the shared chat
+      if (result.text) {
+        chatRef.current?.addAgentMessage(agent.name, color, result.text);
+      }
 
       const newMessages = [...messagesForAgent, agentMessage];
 
@@ -113,7 +133,7 @@ export function Home() {
         }
 
         const toolResultMessage: Message = {
-          sender: 'moderator',
+          sender: 'system',
           agentId: agent.id,
           content: toolResultContent,
           toolResultFor: {
@@ -145,6 +165,11 @@ export function Home() {
     handleAgentMove('black');
   }, [handleAgentMove]);
 
+  const handleModeratorMessage = useCallback((text: string) => {
+    const msg: Message = { sender: 'moderator', content: text };
+    setSharedMessages((prev) => [...prev, msg]);
+  }, []);
+
   const handleReset = useCallback((fisher?: boolean) => {
     engineRef.current.reset(fisher);
     const state = engineRef.current.getState();
@@ -153,9 +178,16 @@ export function Home() {
     const fen = engineRef.current.getFEN();
     setSanMoves([]);
     setSharedMessages([]);
+    whiteRef.current?.rerollName();
+    blackRef.current?.rerollName();
     chatRef.current?.clear();
     chatRef.current?.addSystemMessage(`Game reset — Mode: ${mode} FEN: ${fen}`);
   }, []);
+
+  useEffect(() => {
+    const el = notationRef.current;
+    if (el) el.scrollLeft = el.scrollWidth;
+  }, [sanMoves]);
 
   useEffect(() => {
     handleReset();
@@ -194,7 +226,7 @@ export function Home() {
           >
             {showWhite ? '◀ White' : '▶ White'}
           </button>
-          <div className="toolbar__notation">
+          <div className="toolbar__notation" ref={notationRef}>
             {sanMoves.length === 0 && (
               <span className="toolbar__notation-empty">No moves yet</span>
             )}
@@ -216,7 +248,7 @@ export function Home() {
         </div>
         <div className="home__layout">
           <WhitePanel ref={whiteRef} isOpen={showWhite} messages={sharedMessages} />
-          <Arena ref={chatRef} gameState={gameState} onMove={handleMove} />
+          <Arena ref={chatRef} gameState={gameState} onMove={handleMove} onModeratorMessage={handleModeratorMessage} />
           <BlackPanel ref={blackRef} isOpen={showBlack} messages={sharedMessages} />
         </div>
       </div>

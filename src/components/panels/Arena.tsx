@@ -7,15 +7,16 @@ import './Arena.css';
 interface ArenaProps {
   gameState: GameState;
   onMove: (from: number, to: number) => void;
+  onModeratorMessage?: (text: string) => void;
 }
 
-export const Arena = forwardRef<GameChatHandle, ArenaProps>(function Arena({ gameState, onMove }, ref) {
+export const Arena = forwardRef<GameChatHandle, ArenaProps>(function Arena({ gameState, onMove, onModeratorMessage }, ref) {
   return (
     <main className="arena">
       <div className="arena__content">
         <ChessBoard gameState={gameState} onMove={onMove} />
       </div>
-      <GameChat ref={ref} />
+      <GameChat ref={ref} onModeratorMessage={onModeratorMessage} />
     </main>
   );
 });

@@ -143,6 +143,14 @@
   margin-right: 4px;
 }
 
+.panel-message__reasoning {
+  display: block;
+  margin-top: 2px;
+  font-style: italic;
+  opacity: 0.75;
+  font-size: 11px;
+}
+
 .panel-message__text {
   display: block;
   margin-top: 2px;
@@ -179,4 +187,204 @@
 @keyframes agent-pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.3; }
+}
+
+/* Info button */
+.agent-card__info {
+  margin-left: auto;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+  opacity: 0.5;
+  padding: 0 2px;
+  line-height: 1;
+}
+
+.agent-card__info:hover {
+  opacity: 1;
+}
+
+/* Log overlay */
+.agent-log-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.agent-log {
+  background: #1e1e1e;
+  color: #d4d4d4;
+  border-radius: 8px;
+  width: 90vw;
+  max-width: 720px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+.agent-log__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid #333;
+}
+
+.agent-log__title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #ccc;
+}
+
+.agent-log__close {
+  background: none;
+  border: none;
+  color: #888;
+  font-size: 20px;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+}
+
+.agent-log__close:hover {
+  color: #fff;
+}
+
+.agent-log__content {
+  flex: 1;
+  overflow: auto;
+  padding: 8px;
+  font-size: 11px;
+  font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+  line-height: 1.5;
+}
+
+.agent-log__empty {
+  color: #888;
+  padding: 14px;
+  text-align: center;
+}
+
+/* Call-level collapsible */
+.agent-log__call {
+  margin-bottom: 4px;
+  border: 1px solid #333;
+  border-radius: 4px;
+}
+
+.agent-log__call-summary {
+  cursor: pointer;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #9cdcfe;
+  background: #252526;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  user-select: none;
+}
+
+.agent-log__call-summary:hover {
+  background: #2a2d2e;
+}
+
+.agent-log__call-count {
+  margin-left: auto;
+  font-weight: 400;
+  font-size: 10px;
+  color: #888;
+}
+
+.agent-log__call-cost {
+  font-size: 10px;
+  font-weight: 400;
+  color: #4ec9b0;
+  margin-left: 4px;
+}
+
+.agent-log__copy {
+  flex-shrink: 0;
+  margin-left: 8px;
+  padding: 1px 8px;
+  font-size: 10px;
+  background: #333;
+  color: #ccc;
+  border: 1px solid #555;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.agent-log__copy:hover {
+  background: #444;
+  color: #fff;
+}
+
+.agent-log__call-messages {
+  padding: 4px 6px;
+  overflow: hidden;
+}
+
+/* Message-level collapsible */
+.agent-log__msg {
+  margin-bottom: 2px;
+  width: 100%;
+}
+
+.agent-log__msg-summary {
+  cursor: pointer;
+  padding: 3px 6px;
+  border-radius: 3px;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  user-select: none;
+}
+
+.agent-log__msg-summary:hover {
+  background: #2a2d2e;
+}
+
+.agent-log__role {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 1px 4px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.agent-log__role--system { background: #3e3e00; color: #dcdcaa; }
+.agent-log__role--user { background: #1e3a1e; color: #a5d6a7; }
+.agent-log__role--assistant { background: #1e2a3e; color: #9cdcfe; }
+.agent-log__role--tool { background: #3e1e3e; color: #ce93d8; }
+.agent-log__role--unknown { background: #333; color: #888; }
+
+.agent-log__preview {
+  color: #888;
+  font-size: 10px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.agent-log__msg-body {
+  margin: 2px 0 4px 20px;
+  padding: 6px 8px;
+  background: #181818;
+  border-radius: 3px;
+  font-size: 10px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: #ccc;
+  border-left: 2px solid #444;
 }

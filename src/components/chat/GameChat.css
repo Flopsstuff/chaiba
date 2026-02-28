@@ -34,12 +34,17 @@
   max-width: 85%;
 }
 
-.game-chat__message--user {
+.game-chat__message--white {
+  align-self: flex-start;
+}
+
+.game-chat__message--black {
   align-self: flex-end;
 }
 
-.game-chat__message--assistant {
-  align-self: flex-start;
+.game-chat__message--moderator {
+  align-self: center;
+  max-width: 90%;
 }
 
 .game-chat__message--system {
@@ -66,17 +71,22 @@
   word-break: break-word;
 }
 
-.game-chat__message--user .game-chat__bubble {
-  background: #1a73e8;
-  color: #fff;
-  border-bottom-right-radius: 4px;
-}
-
-.game-chat__message--assistant .game-chat__bubble {
+.game-chat__message--white .game-chat__bubble {
   background: #fff;
   color: #333;
   border: 1px solid #ddd;
   border-bottom-left-radius: 4px;
+}
+
+.game-chat__message--black .game-chat__bubble {
+  background: #333;
+  color: #fff;
+  border-bottom-right-radius: 4px;
+}
+
+.game-chat__message--moderator .game-chat__bubble {
+  background: #1a73e8;
+  color: #fff;
 }
 
 .game-chat__sender {

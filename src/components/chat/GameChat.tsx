@@ -1,20 +1,26 @@
 import { useState, useRef, useEffect, useImperativeHandle, forwardRef } from 'react';
 import './GameChat.css';
 
-type MessageRole = 'user' | 'assistant' | 'system';
+type MessageRole = 'white' | 'black' | 'moderator' | 'system';
 
 interface Message {
   id: number;
   role: MessageRole;
   text: string;
+  sender?: string;
 }
 
 export interface GameChatHandle {
   addSystemMessage: (text: string) => void;
+  addAgentMessage: (name: string, color: 'white' | 'black', text: string) => void;
   clear: () => void;
 }
 
-export const GameChat = forwardRef<GameChatHandle>(function GameChat(_props, ref) {
+interface GameChatProps {
+  onModeratorMessage?: (text: string) => void;
+}
+
+export const GameChat = forwardRef<GameChatHandle, GameChatProps>(function GameChat({ onModeratorMessage }, ref) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -22,6 +28,9 @@ export const GameChat = forwardRef<GameChatHandle>(function GameChat(_props, ref
   useImperativeHandle(ref, () => ({
     addSystemMessage(text: string) {
       setMessages((prev) => [...prev, { id: Date.now(), role: 'system', text }]);
+    },
+    addAgentMessage(name: string, color: 'white' | 'black', text: string) {
+      setMessages((prev) => [...prev, { id: Date.now(), role: color, text, sender: name }]);
     },
     clear() {
       setMessages([]);
@@ -38,8 +47,9 @@ export const GameChat = forwardRef<GameChatHandle>(function GameChat(_props, ref
 
     setMessages((prev) => [
       ...prev,
-      { id: Date.now(), role: 'user', text },
+      { id: Date.now(), role: 'moderator', text },
     ]);
+    onModeratorMessage?.(text);
     setInput('');
   };
 
@@ -58,10 +68,8 @@ export const GameChat = forwardRef<GameChatHandle>(function GameChat(_props, ref
         )}
         {messages.map((msg) => (
           <div key={msg.id} className={`game-chat__message game-chat__message--${msg.role}`}>
-            {msg.role !== 'system' && (
-              <span className="game-chat__sender">
-                {msg.role === 'user' ? 'You' : 'AI'}
-              </span>
+            {msg.sender && (
+              <span className="game-chat__sender">{msg.sender}</span>
             )}
             <div className="game-chat__bubble">{msg.text}</div>
           </div>
