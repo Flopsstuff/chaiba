@@ -11,6 +11,7 @@ export class ChessPlayer {
   readonly color: ChessColor;
   model: string;
   systemPrompt: string;
+  fischer960: boolean = false;
 
   private _status: PlayerStatus = 'idle';
   private _error: string | null = null;
@@ -61,8 +62,9 @@ export class ChessPlayer {
     const opponentInfo = opponent
       ? ` Your opponent is ${opponent.name}, playing ${opponent.color}.`
       : '';
+    const modeInfo = this.fischer960 ? ' This is a Chess960 (Fischer Random) game — pieces start in a randomized position.' : '';
     const result: ModelMessage[] = [
-      { role: 'user', content: `[SYSTEM]: Chess game started. You are ${this.name}, playing ${this.color}.${opponentInfo} Make your moves using the 'make-move' tool after ${MoveCommand}. Confirm your name and color and your ready to play.` },
+      { role: 'user', content: `[SYSTEM]: Chess game started.${modeInfo} You are ${this.name}, playing ${this.color}.${opponentInfo} Make your moves using the 'make-move' tool after ${MoveCommand}. Confirm your name and color and your ready to play.` },
       { role: 'assistant', content: `I am ${this.name}, playing ${this.color}. I will use the 'make-move' tool to submit my moves after ${MoveCommand}.` },
     ];
 

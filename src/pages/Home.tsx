@@ -24,6 +24,7 @@ export function Home() {
   const [thinkingColor, setThinkingColor] = useState<ChessColor | null>(null);
   const [whiteOpen, setWhiteOpen] = useState(false);
   const [blackOpen, setBlackOpen] = useState(false);
+  const [isFischer, setIsFischer] = useState(false);
   const notationRef = useRef<HTMLDivElement>(null);
 
   const handleMove = useCallback((from: number, to: number) => {
@@ -178,6 +179,7 @@ export function Home() {
     const fen = engineRef.current.getFEN();
     setSanMoves([]);
     setSharedMessages([]);
+    setIsFischer(!!fisher);
     whiteRef.current?.rerollName();
     blackRef.current?.rerollName();
     chatRef.current?.clear();
@@ -247,9 +249,9 @@ export function Home() {
           </button>
         </div>
         <div className="home__layout">
-          <WhitePanel ref={whiteRef} isOpen={showWhite} messages={sharedMessages} />
+          <WhitePanel ref={whiteRef} isOpen={showWhite} messages={sharedMessages} fischer960={isFischer} />
           <Arena ref={chatRef} gameState={gameState} onMove={handleMove} onModeratorMessage={handleModeratorMessage} />
-          <BlackPanel ref={blackRef} isOpen={showBlack} messages={sharedMessages} />
+          <BlackPanel ref={blackRef} isOpen={showBlack} messages={sharedMessages} fischer960={isFischer} />
         </div>
       </div>
     </>

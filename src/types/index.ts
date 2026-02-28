@@ -29,4 +29,5 @@ export interface PlayerConfig {
   color: ChessColor;
   model: string;
   systemPrompt: string;
+  fischer960?: boolean;
 }

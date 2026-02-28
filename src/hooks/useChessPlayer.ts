@@ -34,6 +34,7 @@ export function useChessPlayer(config: PlayerConfig): UseChessPlayerReturn {
   player.name = config.name;
   player.model = config.model;
   player.systemPrompt = config.systemPrompt;
+  player.fischer960 = !!config.fischer960;
 
   const id = player.id;
   const name = player.name;

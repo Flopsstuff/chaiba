@@ -40,10 +40,11 @@ export interface AgentCardHandle {
 interface AgentCardProps {
   color: ChessColor;
   messages: Message[];
+  fischer960?: boolean;
 }
 
 export const AgentCard = forwardRef<AgentCardHandle, AgentCardProps>(
-  function AgentCard({ color, messages }, ref) {
+  function AgentCard({ color, messages, fischer960 }, ref) {
     const modelIndex = color === 'white' ? 0 : 1;
 
     const [agentName, setAgentName] = useState(randomName);
@@ -62,7 +63,8 @@ export const AgentCard = forwardRef<AgentCardHandle, AgentCardProps>(
       color,
       model: selectedModel,
       systemPrompt,
-    }), [agentName, color, selectedModel, systemPrompt]);
+      fischer960,
+    }), [agentName, color, selectedModel, systemPrompt, fischer960]);
 
     const { id, name, status, error, messageLog, generate } = useChessPlayer(config);
     const [showLog, setShowLog] = useState(false);
