@@ -42,6 +42,22 @@
   align-self: flex-start;
 }
 
+.game-chat__message--system {
+  align-self: center;
+  max-width: 90%;
+}
+
+.game-chat__message--system .game-chat__bubble {
+  background: transparent;
+  color: #888;
+  border: 1px dashed #ccc;
+  border-radius: 8px;
+  white-space: pre-line;
+  font-size: 12px;
+  text-align: center;
+  font-style: italic;
+}
+
 .game-chat__bubble {
   padding: 8px 12px;
   border-radius: 12px;

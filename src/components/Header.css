@@ -2,7 +2,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 10px 12px;
+  padding: 4px 12px;
   background-color: #282c34;
   color: white;
 }
@@ -18,6 +18,27 @@
   font-weight: bold;
   color: white;
   text-decoration: none;
+}
+
+.header-controls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.header-controls__btn {
+  padding: 6px 14px;
+  background-color: #455a64;
+  color: white;
+  border: 1px solid #607d8b;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.header-controls__btn:hover {
+  background-color: #546e7a;
 }
 
 .header-actions {

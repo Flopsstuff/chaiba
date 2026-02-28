@@ -1,16 +1,32 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useImperativeHandle, forwardRef } from 'react';
 import './GameChat.css';
+
+type MessageRole = 'user' | 'assistant' | 'system';
 
 interface Message {
   id: number;
-  role: 'user' | 'assistant';
+  role: MessageRole;
   text: string;
 }
 
-export function GameChat() {
+export interface GameChatHandle {
+  addSystemMessage: (text: string) => void;
+  clear: () => void;
+}
+
+export const GameChat = forwardRef<GameChatHandle>(function GameChat(_props, ref) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  useImperativeHandle(ref, () => ({
+    addSystemMessage(text: string) {
+      setMessages((prev) => [...prev, { id: Date.now(), role: 'system', text }]);
+    },
+    clear() {
+      setMessages([]);
+    },
+  }));
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -42,9 +58,11 @@ export function GameChat() {
         )}
         {messages.map((msg) => (
           <div key={msg.id} className={`game-chat__message game-chat__message--${msg.role}`}>
-            <span className="game-chat__sender">
-              {msg.role === 'user' ? 'You' : 'AI'}
-            </span>
+            {msg.role !== 'system' && (
+              <span className="game-chat__sender">
+                {msg.role === 'user' ? 'You' : 'AI'}
+              </span>
+            )}
             <div className="game-chat__bubble">{msg.text}</div>
           </div>
         ))}
@@ -69,4 +87,4 @@ export function GameChat() {
       </div>
     </div>
   );
-}
+});

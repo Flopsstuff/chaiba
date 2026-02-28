@@ -107,7 +107,18 @@ function promotionCharToType(ch: string): PieceType | null {
     b: 'bishop',
     n: 'knight',
   };
-  return map[ch] ?? null;
+  return map[ch.toLowerCase()] ?? null;
+}
+
+function sanPrefixToPieceType(ch: string): PieceType {
+  const map: Record<string, PieceType> = {
+    K: 'king',
+    Q: 'queen',
+    R: 'rook',
+    B: 'bishop',
+    N: 'knight',
+  };
+  return map[ch];
 }
 
 function promotionTypeToSan(type: PieceType): string {
@@ -513,6 +524,118 @@ export class ChessEngine {
     });
 
     return { success: true };
+  }
+
+  // -----------------------------------------------------------------------
+  // moveSAN
+  // -----------------------------------------------------------------------
+
+  moveSAN(san: string): { success: true } | { success: false; error: string } {
+    // Strip check/checkmate suffixes
+    const cleaned = san.replace(/[+#]$/, '').trim();
+
+    // Castling
+    if (cleaned === 'O-O' || cleaned === '0-0') {
+      const rank = this.state.activeColor === 'white' ? 0 : 7;
+      return this.moveUCI(
+        squareToAlgebraic(rank * 8 + 4) + squareToAlgebraic(rank * 8 + 6),
+      );
+    }
+    if (cleaned === 'O-O-O' || cleaned === '0-0-0') {
+      const rank = this.state.activeColor === 'white' ? 0 : 7;
+      return this.moveUCI(
+        squareToAlgebraic(rank * 8 + 4) + squareToAlgebraic(rank * 8 + 2),
+      );
+    }
+
+    // Parse SAN: [KQRBN]?[a-h]?[1-8]?[x]?[a-h][1-8]([=][QRBN])?
+    let pos = 0;
+    let pieceType: PieceType = 'pawn';
+    let disambigFile: number | null = null;
+    let disambigRank: number | null = null;
+    let toFile: number;
+    let toRank: number;
+    let promotion: PieceType | null = null;
+
+    // Piece prefix
+    if (pos < cleaned.length && 'KQRBN'.includes(cleaned[pos])) {
+      pieceType = sanPrefixToPieceType(cleaned[pos]);
+      pos++;
+    }
+
+    // Find the target square — it's always the last [a-h][1-8] before optional =promo
+    // Work backwards from the end to find target square
+    let promoStr = '';
+    let core = cleaned.slice(pos);
+    const promoMatch = core.match(/=([QRBNqrbn])$/);
+    if (promoMatch) {
+      promoStr = promoMatch[1];
+      core = core.slice(0, -2);
+    }
+
+    // Remove capture marker
+    core = core.replace('x', '');
+
+    // Last two chars are the target square
+    if (core.length < 2) {
+      return { success: false, error: `Invalid SAN: '${san}'` };
+    }
+    const targetStr = core.slice(-2);
+    if (!/^[a-h][1-8]$/.test(targetStr)) {
+      return { success: false, error: `Invalid SAN target square: '${san}'` };
+    }
+    toFile = targetStr.charCodeAt(0) - 97;
+    toRank = parseInt(targetStr[1], 10) - 1;
+    const toIndex = toRank * 8 + toFile;
+
+    // Remaining prefix is disambiguation
+    const disambig = core.slice(0, -2);
+    for (const ch of disambig) {
+      if (ch >= 'a' && ch <= 'h') {
+        disambigFile = ch.charCodeAt(0) - 97;
+      } else if (ch >= '1' && ch <= '8') {
+        disambigRank = parseInt(ch, 10) - 1;
+      }
+    }
+
+    // Promotion
+    if (promoStr) {
+      promotion = promotionCharToType(promoStr);
+    }
+
+    // Find the matching piece
+    const color = this.state.activeColor;
+    let foundFrom: number | null = null;
+
+    for (let i = 0; i < 64; i++) {
+      const p = this.state.board[i];
+      if (!p || p.type !== pieceType || p.color !== color) continue;
+      if (disambigFile !== null && i % 8 !== disambigFile) continue;
+      if (disambigRank !== null && Math.floor(i / 8) !== disambigRank) continue;
+
+      const legal = getLegalMoves(this.state, i);
+      if (!legal.includes(toIndex)) continue;
+
+      if (foundFrom !== null) {
+        return { success: false, error: `Ambiguous SAN: '${san}'` };
+      }
+      foundFrom = i;
+    }
+
+    if (foundFrom === null) {
+      return { success: false, error: `No legal move matches SAN: '${san}'` };
+    }
+
+    // Build UCI and delegate
+    let uci = squareToAlgebraic(foundFrom) + squareToAlgebraic(toIndex);
+    if (promotion) {
+      const promoMap: Record<PieceType, string> = {
+        queen: 'q', rook: 'r', bishop: 'b', knight: 'n', king: '', pawn: '',
+      };
+      uci += promoMap[promotion];
+    }
+
+    return this.moveUCI(uci);
   }
 
   // -----------------------------------------------------------------------

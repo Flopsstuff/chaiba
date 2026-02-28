@@ -87,3 +87,42 @@ interface Piece {
 ```typescript
 type Board = (Piece | null)[];  // length 64, index = file + rank * 8
 ```
+
+### CastlingRights
+
+```typescript
+interface CastlingRights {
+  K: boolean;   // white kingside
+  Q: boolean;   // white queenside
+  k: boolean;   // black kingside
+  q: boolean;   // black queenside
+}
+```
+
+### GameState
+
+```typescript
+interface GameState {
+  board: Board;
+  activeColor: PieceColor;
+  castlingRights: CastlingRights;
+  enPassantSquare: number | null;  // target square index, or null
+  halfmoveClock: number;
+  fullmoveNumber: number;
+}
+```
+
+Full game state matching FEN fields. Used by `ChessEngine`, `ChessBoard`, and `Arena`.
+
+## Component Types
+
+### GameChatHandle (`src/components/chat/GameChat.tsx`)
+
+```typescript
+interface GameChatHandle {
+  addSystemMessage: (text: string) => void;
+  clear: () => void;
+}
+```
+
+Imperative handle exposed by `GameChat` via `forwardRef` + `useImperativeHandle`. Used by `Home` to push system messages (move results, reset notifications) into the chat.

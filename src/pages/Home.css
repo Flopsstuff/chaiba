@@ -9,12 +9,12 @@
 .toolbar {
   display: flex;
   align-items: center;
-  height: 36px;
-  min-height: 36px;
-  max-height: 36px;
-  padding: 0 8px;
+  height: 28px;
+  min-height: 32px;
+  max-height: 32px;
+  padding: 0 8px 4px;
   background: #282c34;
-  gap: 8px;
+  gap: 12px;
 }
 
 .toolbar__toggle {
@@ -45,6 +45,8 @@
   flex: 1;
   min-width: 0;
   overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
   white-space: nowrap;
   font-size: 12px;
   font-family: monospace;
@@ -55,6 +57,20 @@
   padding: 2px 8px;
   height: 24px;
   line-height: 24px;
+}
+
+.toolbar__notation-empty {
+  color: #666;
+  font-style: italic;
+}
+
+.toolbar__notation-move {
+  margin-right: 4px;
+}
+
+.toolbar__notation-num {
+  color: #888;
+  margin-right: 2px;
 }
 
 .home__layout {

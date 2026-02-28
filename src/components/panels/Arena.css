@@ -7,7 +7,7 @@
 }
 
 .arena__content {
-  flex: 1;
+  flex: none;
   padding: 16px;
   background: #e0e0e0;
   border-left: 1px solid #ccc;

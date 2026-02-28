@@ -1,12 +1,16 @@
 import { DndContext, type DragEndEvent, type DragStartEvent, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { useCallback, useState } from 'react';
 import { getLegalMoves } from '../../chess/rules';
-import { getStartingGameState, type GameState } from '../../chess/types';
+import type { GameState } from '../../chess/types';
 import { ChessSquare } from './ChessSquare';
 import './ChessBoard.css';
 
-export function ChessBoard() {
-  const [gameState, setGameState] = useState<GameState>(getStartingGameState);
+interface ChessBoardProps {
+  gameState: GameState;
+  onMove: (from: number, to: number) => void;
+}
+
+export function ChessBoard({ gameState, onMove }: ChessBoardProps) {
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
 
@@ -28,17 +32,10 @@ export function ChessBoard() {
     setActiveId(null);
     setSelectedIndex(null);
     if (!over) return;
-    const fromIndex = parseInt(active.id as string, 10);
-    const toIndex = parseInt(over.id as string, 10);
-    if (fromIndex === toIndex) return;
-    const piece = gameState.board[fromIndex];
-    if (!piece) return;
-
-    const nextBoard = [...gameState.board];
-    nextBoard[fromIndex] = null;
-    nextBoard[toIndex] = piece;
-    setGameState((prev) => ({ ...prev, board: nextBoard }));
-  }, [gameState.board]);
+    const from = parseInt(active.id as string, 10);
+    const to = parseInt(over.id as string, 10);
+    if (from !== to) onMove(from, to);
+  }, [onMove]);
 
   // White at bottom: render rank 7 first (top), rank 0 last (bottom)
   const rows: number[][] = [];

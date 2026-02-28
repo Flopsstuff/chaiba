@@ -373,3 +373,136 @@ describe('getSAN', () => {
     expect(san[0]).toBe('N3e4');
   });
 });
+
+describe('moveSAN', () => {
+  it('plays simple pawn moves', () => {
+    const engine = new ChessEngine();
+    expect(engine.moveSAN('e4')).toEqual({ success: true });
+    expect(engine.moveSAN('e5')).toEqual({ success: true });
+    expect(engine.getFEN()).toContain('4p3');
+  });
+
+  it('plays piece moves with prefix', () => {
+    const engine = new ChessEngine();
+    engine.moveSAN('e4');
+    engine.moveSAN('e5');
+    expect(engine.moveSAN('Nf3')).toEqual({ success: true });
+    expect(engine.getSAN()).toEqual(['e4', 'e5', 'Nf3']);
+  });
+
+  it('plays pawn captures', () => {
+    const engine = new ChessEngine();
+    engine.moveSAN('e4');
+    engine.moveSAN('d5');
+    expect(engine.moveSAN('exd5')).toEqual({ success: true });
+    expect(engine.getSAN()[2]).toBe('exd5');
+  });
+
+  it('plays kingside castling O-O', () => {
+    const engine = new ChessEngine();
+    engine.moveSAN('e4');
+    engine.moveSAN('e5');
+    engine.moveSAN('Nf3');
+    engine.moveSAN('Nc6');
+    engine.moveSAN('Bc4');
+    engine.moveSAN('Bc5');
+    expect(engine.moveSAN('O-O')).toEqual({ success: true });
+    const state = engine.getState();
+    expect(state.board[6]).toEqual({ type: 'king', color: 'white' });
+    expect(state.board[5]).toEqual({ type: 'rook', color: 'white' });
+  });
+
+  it('plays queenside castling O-O-O', () => {
+    const engine = new ChessEngine();
+    engine.moveSAN('d4');
+    engine.moveSAN('d5');
+    engine.moveSAN('Nc3');
+    engine.moveSAN('Nc6');
+    engine.moveSAN('Bf4');
+    engine.moveSAN('Bf5');
+    engine.moveSAN('Qd2');
+    engine.moveSAN('Qd7');
+    expect(engine.moveSAN('O-O-O')).toEqual({ success: true });
+    const state = engine.getState();
+    expect(state.board[2]).toEqual({ type: 'king', color: 'white' });
+    expect(state.board[3]).toEqual({ type: 'rook', color: 'white' });
+  });
+
+  it('handles castling with 0-0 notation', () => {
+    const engine = new ChessEngine();
+    engine.moveSAN('e4');
+    engine.moveSAN('e5');
+    engine.moveSAN('Nf3');
+    engine.moveSAN('Nc6');
+    engine.moveSAN('Bc4');
+    engine.moveSAN('Bc5');
+    expect(engine.moveSAN('0-0')).toEqual({ success: true });
+  });
+
+  it('plays promotion', () => {
+    const engine = new ChessEngine();
+    engine.setFEN('8/4P3/8/8/8/8/8/K6k w - - 0 1');
+    expect(engine.moveSAN('e8=Q')).toEqual({ success: true });
+    expect(engine.getState().board[60]).toEqual({ type: 'queen', color: 'white' });
+  });
+
+  it('plays promotion with capture', () => {
+    const engine = new ChessEngine();
+    engine.setFEN('3r4/4P3/8/8/8/8/8/K6k w - - 0 1');
+    expect(engine.moveSAN('exd8=Q')).toEqual({ success: true });
+    expect(engine.getState().board[59]).toEqual({ type: 'queen', color: 'white' });
+  });
+
+  it('handles disambiguation by file', () => {
+    const engine = new ChessEngine();
+    engine.setFEN('4k3/8/8/8/8/2N3N1/8/4K3 w - - 0 1');
+    expect(engine.moveSAN('Nce4')).toEqual({ success: true });
+  });
+
+  it('handles disambiguation by rank', () => {
+    const engine = new ChessEngine();
+    engine.setFEN('4k3/8/8/2N5/8/2N5/8/4K3 w - - 0 1');
+    expect(engine.moveSAN('N3e4')).toEqual({ success: true });
+  });
+
+  it('strips + and # suffixes', () => {
+    const engine = new ChessEngine();
+    engine.moveSAN('e4');
+    engine.moveSAN('f5');
+    expect(engine.moveSAN('Qh5+')).toEqual({ success: true });
+  });
+
+  it('returns error for invalid SAN', () => {
+    const engine = new ChessEngine();
+    const result = engine.moveSAN('Zz9');
+    expect(result.success).toBe(false);
+  });
+
+  it('returns error when no piece matches', () => {
+    const engine = new ChessEngine();
+    const result = engine.moveSAN('Nf6');
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toMatch(/no legal move/i);
+    }
+  });
+
+  it('round-trips: moveSAN produces same result as moveUCI', () => {
+    const e1 = new ChessEngine();
+    const e2 = new ChessEngine();
+    const moves = ['e4', 'e5', 'Nf3', 'Nc6', 'Bb5', 'a6', 'Ba4', 'Nf6'];
+    for (const m of moves) {
+      e1.moveSAN(m);
+    }
+    e2.moveUCI('e2e4');
+    e2.moveUCI('e7e5');
+    e2.moveUCI('g1f3');
+    e2.moveUCI('b8c6');
+    e2.moveUCI('f1b5');
+    e2.moveUCI('a7a6');
+    e2.moveUCI('b5a4');
+    e2.moveUCI('g8f6');
+    expect(e1.getFEN()).toBe(e2.getFEN());
+    expect(e1.getSAN()).toEqual(e2.getSAN());
+  });
+});

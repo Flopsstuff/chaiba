@@ -29,17 +29,18 @@ src/
 │   ├── ChessPlayer.ts   # ChessPlayer class (LLM interaction)
 │   └── ChessPrompts.ts  # System prompts for white/black players
 ├── chess/               # Chess game logic (no UI)
-│   ├── types.ts          # Piece, Board, PieceColor, PieceType
-│   └── rules.ts          # getLegalMoves (all piece movement rules)
+│   ├── engine.ts         # ChessEngine class (FEN, UCI, SAN, reset, Chess960)
+│   ├── types.ts          # Piece, Board, GameState, CastlingRights
+│   └── rules.ts          # getLegalMoves, isInCheck, isCheckmate, isStalemate
 ├── components/
-│   ├── Header.tsx/.css       # App header with navigation
+│   ├── Header.tsx/.css       # App header with navigation + game controls (Reset)
 │   ├── GitHubLogo.tsx/.css   # GitHub link icon
 │   ├── chess/                # Chess board UI
 │   │   ├── ChessBoard.tsx/.css  # Interactive board (@dnd-kit)
 │   │   ├── ChessSquare.tsx      # Single square
 │   │   └── ChessPiece.tsx       # Draggable piece
 │   ├── chat/
-│   │   └── GameChat.tsx/.css    # Chat interface
+│   │   └── GameChat.tsx/.css    # Chat interface (system messages via ref)
 │   └── panels/
 │       ├── Arena.tsx/.css       # Central game area
 │       ├── AgentCard.tsx/.css   # Reusable agent config + messages card
@@ -74,17 +75,17 @@ Hash-based routing via `HashRouter` (required for GitHub Pages — no server-sid
 ```
 App
 └── HashRouter
-    ├── Home
-    │   ├── Header
+    ├── Home (owns ChessEngine instance, gameState, sanMoves)
+    │   ├── Header (onReset — click: standard, long-press: Chess960)
     │   │   └── GitHubLogo
-    │   ├── Toolbar (toggle buttons + notation area)
+    │   ├── Toolbar (toggle buttons + SAN notation display)
     │   ├── WhitePanel (left, collapsible)
     │   │   └── AgentCard (model select, prompts, messages)
     │   │       └── MessageBubble[]
-    │   ├── Arena (center)
-    │   │   ├── ChessBoard
+    │   ├── Arena (center, forwards ref to GameChat)
+    │   │   ├── ChessBoard (gameState, onMove)
     │   │   │   └── ChessSquare[] + ChessPiece[]
-    │   │   └── GameChat
+    │   │   └── GameChat (imperative handle: addSystemMessage, clear)
     │   └── BlackPanel (right, collapsible)
     │       └── AgentCard (model select, prompts, messages)
     │           └── MessageBubble[]
@@ -102,7 +103,12 @@ No global state library. State is managed through:
    - `selected_models` — JSON array of selected model objects
    - `chess_prompts` — custom system prompts
 
-3. **`useChessPlayer` hook** — bridges `ChessPlayer` class and React state:
+3. **`ChessEngine` instance** — owned by `Home` via `useRef`:
+   - Single source of truth for game state and move history
+   - `gameState` and `sanMoves` synced to React state after each move/reset
+   - GameChat controlled via imperative ref (`addSystemMessage`, `clear`)
+
+4. **`useChessPlayer` hook** — bridges `ChessPlayer` class and React state:
    - Lazy-initializes `ChessPlayer` via `useRef`
    - Syncs class state (messages, status, error) into React state
    - Returns `{ messages, status, error, generate, addSystemMessage, reset }`
@@ -127,7 +133,11 @@ The Home page uses a responsive 3-column flexbox layout with a toolbar above:
 └──────────┴───────────────┴──────────┘
 ```
 
-The toolbar contains toggle buttons for each side panel and a central notation area for game moves. Side panels are toggled via the toolbar buttons. At the 768px breakpoint, panels start collapsed.
+The toolbar contains toggle buttons for each side panel and a central notation area displaying live SAN move history from the engine. Side panels are toggled via the toolbar buttons. At the 768px breakpoint, panels start collapsed.
+
+The header includes a **Reset** button with dual behavior:
+- **Click**: Reset to standard starting position
+- **Long-press** (600ms): Reset to Chess960 (Fischer Random) position
 
 ## Key Architectural Decisions
 
