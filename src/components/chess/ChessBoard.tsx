@@ -25,9 +25,17 @@ export function ChessBoard({ gameState, lastMove, onMove }: ChessBoardProps) {
   }, []);
 
   const handleSelect = useCallback((index: number) => {
+    if (selectedIndex != null && selectedIndex !== index) {
+      const moves = getLegalMoves(gameState, selectedIndex);
+      if (moves.includes(index)) {
+        onMove(selectedIndex, index);
+        setSelectedIndex(null);
+        return;
+      }
+    }
     const piece = gameState.board[index];
     setSelectedIndex(piece ? index : null);
-  }, [gameState.board]);
+  }, [gameState.board, selectedIndex, onMove]);
 
   const handleDragEnd = useCallback(({ active, over }: DragEndEvent) => {
     setActiveId(null);
@@ -71,6 +79,7 @@ export function ChessBoard({ gameState, lastMove, onMove }: ChessBoardProps) {
                     key={idx}
                     index={idx}
                     piece={gameState.board[idx]}
+                    isSelected={idx === selectedIndex}
                     isHighlight={validMoves.includes(idx)}
                     isLastMove={idx === lastMove?.from || idx === lastMove?.to}
                     onSelect={handleSelect}

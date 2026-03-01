@@ -6,11 +6,12 @@ interface ChessSquareProps {
   index: number;
   piece: Piece | null;
   isHighlight: boolean;
+  isSelected?: boolean;
   isLastMove?: boolean;
   onSelect?: (index: number) => void;
 }
 
-export function ChessSquare({ index, piece, isHighlight, isLastMove, onSelect }: ChessSquareProps) {
+export function ChessSquare({ index, piece, isHighlight, isSelected, isLastMove, onSelect }: ChessSquareProps) {
   const { isOver, setNodeRef } = useDroppable({ id: String(index) });
   const file = index % 8;
   const rank = Math.floor(index / 8);
@@ -19,7 +20,7 @@ export function ChessSquare({ index, piece, isHighlight, isLastMove, onSelect }:
   return (
     <div
       ref={setNodeRef}
-      className={`chess-square ${isLight ? 'chess-square--light' : 'chess-square--dark'} ${isHighlight ? 'chess-square--highlight' : ''} ${isLastMove ? 'chess-square--last-move' : ''} ${isOver ? 'chess-square--over' : ''}`}
+      className={`chess-square ${isLight ? 'chess-square--light' : 'chess-square--dark'} ${isSelected ? 'chess-square--selected' : ''} ${isHighlight ? 'chess-square--highlight' : ''} ${isLastMove ? 'chess-square--last-move' : ''} ${isOver ? 'chess-square--over' : ''}`}
       data-index={index}
       onClick={() => onSelect?.(index)}
       role="button"
