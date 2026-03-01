@@ -78,4 +78,31 @@
   display: flex;
   align-items: stretch;
   min-height: 0;
+  position: relative;
+}
+
+@media (max-width: 767px) {
+  .home__layout .white-panel,
+  .home__layout .black-panel {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    z-index: 10;
+    width: 0;
+    min-width: 0;
+  }
+
+  .home__layout .white-panel {
+    left: 0;
+  }
+
+  .home__layout .black-panel {
+    right: 0;
+  }
+
+  .home__layout .white-panel.white-panel--open,
+  .home__layout .black-panel.black-panel--open {
+    width: 280px;
+    min-width: 280px;
+  }
 }

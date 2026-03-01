@@ -1,4 +1,6 @@
-import { useState, useRef, useEffect, useImperativeHandle, forwardRef } from 'react';
+import { useState, useRef, useEffect, useImperativeHandle, forwardRef, useCallback } from 'react';
+import { ColorSpinner } from '../ColorSpinner';
+import type { ChessColor } from '../../types';
 import './GameChat.css';
 
 type MessageRole = 'white' | 'black' | 'moderator' | 'system';
@@ -18,19 +20,58 @@ export interface GameChatHandle {
 
 interface GameChatProps {
   onModeratorMessage?: (text: string) => void;
+  onReset?: (fisher?: boolean) => void;
+  onMoveWhite?: () => void;
+  onMoveBlack?: () => void;
+  thinkingColor?: ChessColor | null;
+  activeColor?: ChessColor;
+  gameOver?: boolean;
+  autoPlay?: boolean;
+  onAutoPlayChange?: (value: boolean) => void;
 }
 
-export const GameChat = forwardRef<GameChatHandle, GameChatProps>(function GameChat({ onModeratorMessage }, ref) {
+const LONG_PRESS_MS = 600;
+
+export const GameChat = forwardRef<GameChatHandle, GameChatProps>(function GameChat({ onModeratorMessage, onReset, onMoveWhite, onMoveBlack, thinkingColor, activeColor, gameOver, autoPlay, onAutoPlayChange }, ref) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
+  const nextId = useRef(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const didLongPress = useRef(false);
+  const isThinking = thinkingColor != null;
+
+  const handlePointerDown = useCallback(() => {
+    didLongPress.current = false;
+    pressTimer.current = setTimeout(() => {
+      didLongPress.current = true;
+      onReset?.(true);
+    }, LONG_PRESS_MS);
+  }, [onReset]);
+
+  const handlePointerUp = useCallback(() => {
+    if (pressTimer.current) {
+      clearTimeout(pressTimer.current);
+      pressTimer.current = null;
+    }
+    if (!didLongPress.current) {
+      onReset?.();
+    }
+  }, [onReset]);
+
+  const handlePointerLeave = useCallback(() => {
+    if (pressTimer.current) {
+      clearTimeout(pressTimer.current);
+      pressTimer.current = null;
+    }
+  }, []);
 
   useImperativeHandle(ref, () => ({
     addSystemMessage(text: string) {
-      setMessages((prev) => [...prev, { id: Date.now(), role: 'system', text }]);
+      setMessages((prev) => [...prev, { id: ++nextId.current, role: 'system', text }]);
     },
     addAgentMessage(name: string, color: 'white' | 'black', text: string) {
-      setMessages((prev) => [...prev, { id: Date.now(), role: color, text, sender: name }]);
+      setMessages((prev) => [...prev, { id: ++nextId.current, role: color, text, sender: name }]);
     },
     clear() {
       setMessages([]);
@@ -47,7 +88,7 @@ export const GameChat = forwardRef<GameChatHandle, GameChatProps>(function GameC
 
     setMessages((prev) => [
       ...prev,
-      { id: Date.now(), role: 'moderator', text },
+      { id: ++nextId.current, role: 'moderator', text },
     ]);
     onModeratorMessage?.(text);
     setInput('');
@@ -77,6 +118,49 @@ export const GameChat = forwardRef<GameChatHandle, GameChatProps>(function GameC
         <div ref={messagesEndRef} />
       </div>
 
+      {onReset && (
+        <div className="game-chat__controls">
+          <button
+            type="button"
+            className="game-chat__ctrl-btn"
+            onPointerDown={handlePointerDown}
+            onPointerUp={handlePointerUp}
+            onPointerLeave={handlePointerLeave}
+          >
+            Reset
+          </button>
+          {onMoveWhite && (
+            <button
+              type="button"
+              className="game-chat__ctrl-btn"
+              onClick={onMoveWhite}
+              disabled={isThinking || !!gameOver || activeColor !== 'white'}
+            >
+              <ColorSpinner color="white" spinning={thinkingColor === 'white'} /> Move
+            </button>
+          )}
+          {onMoveBlack && (
+            <button
+              type="button"
+              className="game-chat__ctrl-btn"
+              onClick={onMoveBlack}
+              disabled={isThinking || !!gameOver || activeColor !== 'black'}
+            >
+              <ColorSpinner color="black" spinning={thinkingColor === 'black'} /> Move
+            </button>
+          )}
+          {onAutoPlayChange && (
+            <label className="game-chat__auto-label">
+              <input
+                type="checkbox"
+                checked={!!autoPlay}
+                onChange={(e) => onAutoPlayChange(e.target.checked)}
+              />
+              Auto
+            </label>
+          )}
+        </div>
+      )}
       <div className="game-chat__input-row">
         <input
           className="game-chat__input"

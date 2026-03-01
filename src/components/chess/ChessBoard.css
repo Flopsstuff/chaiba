@@ -85,6 +85,10 @@
   transform: translate(-50%, -50%);
 }
 
+.chess-square--last-move {
+  box-shadow: inset 0 0 10px 5px rgba(100, 255, 250, 0.7);
+}
+
 .chess-square--over {
   background-color: #a8d8a8;
 }

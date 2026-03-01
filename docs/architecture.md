@@ -35,6 +35,7 @@ src/
 ├── components/
 │   ├── Header.tsx/.css       # App header with navigation + game controls (Reset)
 │   ├── GitHubLogo.tsx/.css   # GitHub link icon
+│   ├── ColorSpinner.tsx/.css # Animated spinner with color (white/black)
 │   ├── chess/                # Chess board UI
 │   │   ├── ChessBoard.tsx/.css  # Interactive board (@dnd-kit)
 │   │   ├── ChessSquare.tsx      # Single square
@@ -43,7 +44,7 @@ src/
 │   │   └── GameChat.tsx/.css    # Chat interface (system messages via ref)
 │   └── panels/
 │       ├── Arena.tsx/.css       # Central game area
-│       ├── AgentCard.tsx/.css   # Reusable agent config + messages card
+│       ├── AgentCard.tsx/.css   # Reusable agent config + messages + debug log card
 │       ├── WhitePanel.tsx/.css  # White player panel (wraps AgentCard)
 │       ├── BlackPanel.tsx/.css  # Black player panel (wraps AgentCard)
 │       └── MessageBubble.tsx    # Chat message display
@@ -75,19 +76,21 @@ Hash-based routing via `HashRouter` (required for GitHub Pages — no server-sid
 ```
 App
 └── HashRouter
-    ├── Home (owns ChessEngine instance, gameState, sanMoves)
+    ├── Home (owns ChessEngine instance, gameState, sanMoves, isFischer)
     │   ├── Header (onReset — click: standard, long-press: Chess960)
     │   │   └── GitHubLogo
     │   ├── Toolbar (toggle buttons + SAN notation display)
-    │   ├── WhitePanel (left, collapsible)
-    │   │   └── AgentCard (model select, prompts, messages)
+    │   ├── WhitePanel (left, collapsible, fischer960)
+    │   │   └── AgentCard (color, messages, fischer960)
+    │   │       ├── ColorSpinner (color, spinning)
     │   │       └── MessageBubble[]
     │   ├── Arena (center, forwards ref to GameChat)
     │   │   ├── ChessBoard (gameState, onMove)
     │   │   │   └── ChessSquare[] + ChessPiece[]
     │   │   └── GameChat (imperative handle: addSystemMessage, clear)
-    │   └── BlackPanel (right, collapsible)
-    │       └── AgentCard (model select, prompts, messages)
+    │   └── BlackPanel (right, collapsible, fischer960)
+    │       └── AgentCard (color, messages, fischer960)
+    │           ├── ColorSpinner (color, spinning)
     │           └── MessageBubble[]
     └── Settings
         └── Header
@@ -110,8 +113,8 @@ No global state library. State is managed through:
 
 4. **`useChessPlayer` hook** — bridges `ChessPlayer` class and React state:
    - Lazy-initializes `ChessPlayer` via `useRef`
-   - Syncs class state (messages, status, error) into React state
-   - Returns `{ messages, status, error, generate, addSystemMessage, reset }`
+   - Dynamically syncs mutable config (`name`, `model`, `systemPrompt`, `fischer960`)
+   - Returns `{ id, name, status, error, messageLog, generate }`
 
 ## AI Integration
 
@@ -147,4 +150,4 @@ The header includes a **Reset** button with dual behavior:
 4. **Tool-based moves** — LLM returns chess moves via Vercel AI SDK tool calls, not free text parsing
 5. **Class + hook pattern** — `ChessPlayer` class holds logic; `useChessPlayer` hook bridges it to React rendering
 6. **Component-scoped CSS** — each component has a paired CSS file, no CSS-in-JS overhead
-7. **AgentCard abstraction** — shared `AgentCard` component handles model selection, prompt display, and message rendering for both white and black panels, reducing duplication
+7. **AgentCard abstraction** — shared `AgentCard` component handles model selection, prompt display, message rendering, call cost tracking, and debug message log for both white and black panels, reducing duplication

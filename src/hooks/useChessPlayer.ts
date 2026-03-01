@@ -13,7 +13,8 @@ export interface UseChessPlayerReturn {
   status: PlayerStatus;
   error: string | null;
   messageLog: LogEntry[];
-  generate: (messages: Message[], opponent?: { name: string; color: ChessColor }) => Promise<{ text: string; toolCalls: ToolCallData[] }>;
+  generate: (messages: Message[], opponent?: { name: string; color: ChessColor }) => Promise<{ text: string; toolCalls: ToolCallData[]; cost: number }>;
+  clearLog: () => void;
 }
 
 export function useChessPlayer(config: PlayerConfig): UseChessPlayerReturn {
@@ -59,5 +60,11 @@ export function useChessPlayer(config: PlayerConfig): UseChessPlayerReturn {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  return { id, name, status, error, messageLog, generate };
+  const clearLog = useCallback(() => {
+    getPlayer().clearLog();
+    setMessageLog([]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return { id, name, status, error, messageLog, generate, clearLog };
 }

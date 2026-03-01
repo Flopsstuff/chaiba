@@ -4,6 +4,7 @@ import { WhitePanel } from '../components/panels/WhitePanel';
 import { Arena } from '../components/panels/Arena';
 import { BlackPanel } from '../components/panels/BlackPanel';
 import { ChessEngine } from '../chess/engine';
+import { isCheckmate, isStalemate } from '../chess/rules';
 import type { GameState } from '../chess/types';
 import type { GameChatHandle } from '../components/chat/GameChat';
 import type { AgentCardHandle } from '../components/panels/AgentCard';
@@ -19,12 +20,18 @@ export function Home() {
   const whiteRef = useRef<AgentCardHandle>(null);
   const blackRef = useRef<AgentCardHandle>(null);
   const [gameState, setGameState] = useState<GameState>(() => engineRef.current.getState());
+  const [lastMove, setLastMove] = useState<{ from: number; to: number } | null>(null);
   const [sanMoves, setSanMoves] = useState<string[]>([]);
   const [sharedMessages, setSharedMessages] = useState<Message[]>([]);
+  const sharedMessagesRef = useRef<Message[]>([]);
   const [thinkingColor, setThinkingColor] = useState<ChessColor | null>(null);
   const [whiteOpen, setWhiteOpen] = useState(false);
   const [blackOpen, setBlackOpen] = useState(false);
   const [isFischer, setIsFischer] = useState(false);
+  const [totalCost, setTotalCost] = useState(0);
+  const [autoPlay, setAutoPlay] = useState(false);
+  const autoPlayRef = useRef(false);
+  const handleAgentMoveRef = useRef<(color: ChessColor) => Promise<boolean>>(null!);
   const notationRef = useRef<HTMLDivElement>(null);
 
   const handleMove = useCallback((from: number, to: number) => {
@@ -36,38 +43,39 @@ export function Home() {
     const result = engine.moveUCI(uci);
     if (result.success) {
       setGameState(engine.getState());
+      setLastMove({ from, to });
       const san = engine.getSAN();
       setSanMoves(san);
-      const lastMove = san[san.length - 1];
+      const lastSan = san[san.length - 1];
       const moveNum = Math.ceil(san.length / 2);
       const side = san.length % 2 === 1 ? 'White' : 'Black';
-      chatRef.current?.addSystemMessage(`${moveNum}. ${side}: ${lastMove}`);
+      chatRef.current?.addSystemMessage(`${moveNum}. ${side}: ${lastSan}`);
     } else {
       chatRef.current?.addSystemMessage(result.error);
     }
   }, []);
 
-  const handleAgentMove = useCallback(async (color: ChessColor) => {
+  const handleAgentMove = useCallback(async (color: ChessColor): Promise<boolean> => {
     const engine = engineRef.current;
     const state = engine.getState();
 
     if (state.activeColor !== color) {
       chatRef.current?.addSystemMessage(`It's not ${color}'s turn.`);
-      return;
+      return false;
     }
 
     const agentRef = color === 'white' ? whiteRef : blackRef;
     const agent = agentRef.current;
     if (!agent) {
       chatRef.current?.addSystemMessage(`${color} agent not ready.`);
-      return;
+      return false;
     }
 
     setThinkingColor(color);
 
     // Build context message with current FEN and move history (if enabled)
     const sendContext = localStorage.getItem('send_context_message') !== 'false';
-    let messagesForAgent = [...sharedMessages];
+    let messagesForAgent = [...sharedMessagesRef.current];
 
     if (sendContext) {
       const fen = engine.getFEN();
@@ -94,7 +102,9 @@ export function Home() {
       : undefined;
 
     try {
+      let moveSucceeded = false;
       const result = await agent.generate(messagesForAgent, opponent);
+      if (result.cost) setTotalCost((prev) => prev + result.cost);
 
       // Record agent response in shared history
       const agentMessage: Message = {
@@ -121,13 +131,17 @@ export function Home() {
         let toolResultContent: string;
         if (moveResult.success) {
           setGameState(engine.getState());
+          const history = engine.getHistory();
+          const last = history[history.length - 1];
+          if (last) setLastMove({ from: last.from, to: last.to });
           const updatedSan = engine.getSAN();
           setSanMoves(updatedSan);
-          const lastMove = updatedSan[updatedSan.length - 1];
+          const lastSan = updatedSan[updatedSan.length - 1];
           const moveNum = Math.ceil(updatedSan.length / 2);
           const side = updatedSan.length % 2 === 1 ? 'White' : 'Black';
-          toolResultContent = `Move ${lastMove} accepted.`;
-          chatRef.current?.addSystemMessage(`${moveNum}. ${side}: ${lastMove}`);
+          toolResultContent = `Move ${lastSan} accepted.`;
+          chatRef.current?.addSystemMessage(`${moveNum}. ${side}: ${lastSan}`);
+          moveSucceeded = true;
         } else {
           toolResultContent = `Invalid move "${moveSan}": ${moveResult.error}`;
           chatRef.current?.addSystemMessage(`${agent.name} tried invalid move: ${moveSan} — ${moveResult.error}`);
@@ -149,26 +163,54 @@ export function Home() {
         chatRef.current?.addSystemMessage(`${agent.name} responded without making a move.`);
       }
 
+      sharedMessagesRef.current = newMessages;
       setSharedMessages(newMessages);
+      return moveSucceeded;
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : String(err);
       chatRef.current?.addSystemMessage(`${agent.name} error: ${errorMsg}`);
+      return false;
     } finally {
       setThinkingColor(null);
     }
-  }, [sharedMessages]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  handleAgentMoveRef.current = handleAgentMove;
 
   const handleMoveWhite = useCallback(() => {
-    handleAgentMove('white');
+    return handleAgentMove('white');
   }, [handleAgentMove]);
 
   const handleMoveBlack = useCallback(() => {
-    handleAgentMove('black');
+    return handleAgentMove('black');
   }, [handleAgentMove]);
+
+  useEffect(() => {
+    autoPlayRef.current = autoPlay;
+    if (!autoPlay) return;
+    let cancelled = false;
+    (async () => {
+      while (autoPlayRef.current && !cancelled) {
+        const color = engineRef.current.getState().activeColor;
+        const ok = await handleAgentMoveRef.current(color);
+        if (!ok || !autoPlayRef.current || cancelled) {
+          setAutoPlay(false);
+          break;
+        }
+      }
+    })();
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoPlay]);
 
   const handleModeratorMessage = useCallback((text: string) => {
     const msg: Message = { sender: 'moderator', content: text };
-    setSharedMessages((prev) => [...prev, msg]);
+    setSharedMessages((prev) => {
+      const next = [...prev, msg];
+      sharedMessagesRef.current = next;
+      return next;
+    });
   }, []);
 
   const handleReset = useCallback((fisher?: boolean) => {
@@ -178,10 +220,16 @@ export function Home() {
     const mode = fisher ? 'Chess960 (Fischer Random)' : 'Standard';
     const fen = engineRef.current.getFEN();
     setSanMoves([]);
+    setLastMove(null);
+    sharedMessagesRef.current = [];
     setSharedMessages([]);
     setIsFischer(!!fisher);
+    setTotalCost(0);
+    setAutoPlay(false);
     whiteRef.current?.rerollName();
+    whiteRef.current?.clearLog();
     blackRef.current?.rerollName();
+    blackRef.current?.clearLog();
     chatRef.current?.clear();
     chatRef.current?.addSystemMessage(`Game reset — Mode: ${mode} FEN: ${fen}`);
   }, []);
@@ -212,12 +260,7 @@ export function Home() {
 
   return (
     <>
-      <Header
-        onReset={handleReset}
-        onMoveWhite={handleMoveWhite}
-        onMoveBlack={handleMoveBlack}
-        thinkingColor={thinkingColor}
-      />
+      <Header totalCost={totalCost} />
       <div className="home">
         <div className="toolbar">
           <button
@@ -250,7 +293,21 @@ export function Home() {
         </div>
         <div className="home__layout">
           <WhitePanel ref={whiteRef} isOpen={showWhite} messages={sharedMessages} fischer960={isFischer} />
-          <Arena ref={chatRef} gameState={gameState} onMove={handleMove} onModeratorMessage={handleModeratorMessage} />
+          <Arena
+            ref={chatRef}
+            gameState={gameState}
+            lastMove={lastMove}
+            onMove={handleMove}
+            onModeratorMessage={handleModeratorMessage}
+            onReset={handleReset}
+            onMoveWhite={handleMoveWhite}
+            onMoveBlack={handleMoveBlack}
+            thinkingColor={thinkingColor}
+            activeColor={gameState.activeColor}
+            gameOver={isCheckmate(gameState, gameState.activeColor) || isStalemate(gameState, gameState.activeColor)}
+            autoPlay={autoPlay}
+            onAutoPlayChange={setAutoPlay}
+          />
           <BlackPanel ref={blackRef} isOpen={showBlack} messages={sharedMessages} fischer960={isFischer} />
         </div>
       </div>

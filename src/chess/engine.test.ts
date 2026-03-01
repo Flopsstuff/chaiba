@@ -520,3 +520,42 @@ describe('moveSAN', () => {
     expect(e1.getSAN()).toEqual(e2.getSAN());
   });
 });
+
+describe('king cannot move into check', () => {
+  it('rejects Ke6 when e6 is attacked (Ruy Lopez endgame)', () => {
+    const engine = new ChessEngine();
+    const moves = [
+      'e4','e5','Nf3','Nc6','Bb5','a6','Ba4','Nf6','O-O','Be7',
+      'Re1','O-O','Bb3','d6','c3','Bg4','h3','Bh5','d4','exd4',
+      'cxd4','Nb4','a3','Nc2','Qxc2','Rc8','Bg5','Bg6','Nc3','h6',
+      'Be3','c5','dxc5','dxc5','Rad1','Qc7','Nh4','Bh7','Nf5','Rfd8',
+      'Nxe7+','Qxe7','Bxc5','Rxd1','Qxd1','Qe5','Qd4','Qxd4','Bxd4','Nd5',
+      'Nxd5','Rc2','Nf4','Rxb2','Nh5','Bf5','Nf6+','Kf8','Nh5','Bd7',
+      'Nf6','g5','Nxd7+','Ke7','Nf6','Re2','Rf1','Rxf2','Rxf2','Kd6',
+      'Rf5',
+    ];
+    for (const m of moves) {
+      const r = engine.moveSAN(m);
+      expect(r).toEqual({ success: true });
+    }
+    // Ke6 should be illegal — e6 is attacked
+    const result = engine.moveSAN('Ke6');
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects king moving into rook line of fire', () => {
+    const engine = new ChessEngine();
+    // White rook on e1, Black king on d2 — Ke2 should be illegal
+    engine.setFEN('8/8/8/8/8/8/3k4/4R2K b - - 0 1');
+    const result = engine.moveSAN('Ke2');
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects king moving into bishop diagonal', () => {
+    const engine = new ChessEngine();
+    // White bishop on a1, Black king on c3 — Kd4 is on the a1-h8 diagonal
+    engine.setFEN('8/8/8/8/8/2k5/8/B6K b - - 0 1');
+    const result = engine.moveSAN('Kd4');
+    expect(result.success).toBe(false);
+  });
+});

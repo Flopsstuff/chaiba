@@ -7,10 +7,11 @@ import './ChessBoard.css';
 
 interface ChessBoardProps {
   gameState: GameState;
+  lastMove?: { from: number; to: number } | null;
   onMove: (from: number, to: number) => void;
 }
 
-export function ChessBoard({ gameState, onMove }: ChessBoardProps) {
+export function ChessBoard({ gameState, lastMove, onMove }: ChessBoardProps) {
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
 
@@ -71,6 +72,7 @@ export function ChessBoard({ gameState, onMove }: ChessBoardProps) {
                     index={idx}
                     piece={gameState.board[idx]}
                     isHighlight={validMoves.includes(idx)}
+                    isLastMove={idx === lastMove?.from || idx === lastMove?.to}
                     onSelect={handleSelect}
                   />
                 ))}

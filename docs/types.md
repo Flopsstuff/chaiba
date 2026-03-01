@@ -19,8 +19,16 @@ State of an AI player during a game session.
 ### MessageSender
 
 ```typescript
-type MessageSender = 'system' | 'player' | 'user';
+type MessageSender = 'system' | 'moderator' | 'agent';
 ```
+
+### MoveCommand
+
+```typescript
+const MoveCommand: String = '<make your move now>';
+```
+
+Constant used in system prompts to signal when a player should submit their move via the `make-move` tool.
 
 ### ToolCallData
 
@@ -39,12 +47,18 @@ Normalized representation of an LLM tool call response.
 ```typescript
 interface Message {
   sender: MessageSender;
+  agentId?: string;                  // ID of the agent that sent/owns this message
+  agentName?: string;                // Display name of the agent
   content: string;
   toolCalls?: ToolCallData[];        // Present when LLM makes a move
+  toolResultFor?: {                  // Present for tool result messages
+    callId: string;
+    toolName: string;
+  };
 }
 ```
 
-Single message in a player's conversation history.
+Single message in the shared conversation history. The `agentId` field associates messages with specific agents, enabling per-agent filtering and opponent message handling.
 
 ### PlayerConfig
 
@@ -54,10 +68,11 @@ interface PlayerConfig {
   color: ChessColor;
   model: string;                     // OpenRouter model ID
   systemPrompt: string;
+  fischer960?: boolean;              // Whether playing Chess960 mode
 }
 ```
 
-Configuration for creating a `ChessPlayer` instance.
+Configuration for creating a `ChessPlayer` instance. The `fischer960` flag is dynamically synced to the player via `useChessPlayer`.
 
 ## Chess Types (`src/chess/types.ts`)
 

@@ -28,38 +28,51 @@ The `ChessPlayer` class encapsulates all LLM interaction for one player:
 
 ```typescript
 class ChessPlayer {
-  readonly name: string;
+  readonly id: string;              // Unique ID (crypto.randomUUID)
+  name: string;                     // Mutable — synced from config
   readonly color: ChessColor;       // 'white' | 'black'
-  readonly model: string;           // e.g. 'openai/gpt-4o'
-  readonly systemPrompt: string;
+  model: string;                    // Mutable — synced from config
+  systemPrompt: string;             // Mutable — synced from config
+  fischer960: boolean;              // Whether playing Chess960 mode
 
   get status(): PlayerStatus;       // 'idle' | 'thinking' | 'error'
   get error(): string | null;
-  get messages(): ReadonlyArray<Message>;
+  get messageLog(): { timestamp: number; messages: unknown[] }[];
 
-  generate(prompt: string): Promise<{ text: string; toolCalls: ToolCallData[] }>;
-  addSystemMessage(content: string): void;
-  reset(): void;
+  clearLog(): void;
+  generate(messages: Message[], opponent?: { name: string; color: ChessColor }): Promise<{ text: string; toolCalls: ToolCallData[] }>;
 }
 ```
 
 ### Constructor
 
 - Reads API key from `localStorage`
-- Throws if no API key is configured
-- Creates a dedicated OpenRouter provider instance
+- Creates a dedicated OpenRouter provider instance (uses empty string if no key, throws on `generate` if missing)
+- Assigns a unique `id` via `crypto.randomUUID()`
 
-### Message History
+### Message Handling
 
-Messages are stored in a flat array with three sender types:
+The class does **not** store conversation messages internally. Instead, `generate()` receives the shared `Message[]` array and converts it to LLM-compatible messages via `convertMessages()`. Messages are routed based on `sender` and `agentId`:
 
-| sender | role sent to LLM | Description |
-|--------|-------------------|-------------|
-| `user` | `user` | Prompts to the player |
-| `player` | `assistant` | LLM responses |
-| `system` | `user` (prefixed `[SYSTEM]:`) | Game state notifications |
+| sender | agentId match | LLM role | Description |
+|--------|---------------|----------|-------------|
+| `agent` | own ID | `assistant` | This agent's own responses (with tool calls) |
+| `agent` | other ID | `user` (prefixed `[@name]`) | Opponent's text messages |
+| `system` | own ID or none | `user` (prefixed `[SYSTEM]`) | Game state and context |
+| `system` | other ID | *(skipped)* | Opponent's context messages |
+| `moderator` | — | `user` (prefixed `[MODERATOR]`) | Moderator messages |
+| tool result | own ID | `tool` | Tool results for own calls |
+| tool result | other ID | `user` (converted) | Opponent's moves → "Opponent played X" |
 
-System messages are sent as user messages with a `[SYSTEM]:` prefix rather than using the LLM's system role, keeping the system prompt separate.
+The conversion also prepends a game-start message pair that establishes the player's identity, color, and Chess960 mode.
+
+### Message Log
+
+Each `generate()` call appends a log entry with timestamp and the full request/response messages (including usage metadata). This powers the debug overlay in `AgentCard`.
+
+### Anthropic Prompt Caching
+
+For Anthropic models (`anthropic/*`), the first two messages are annotated with `cacheControl: { type: 'ephemeral' }` to enable prompt caching via OpenRouter.
 
 ### Tool: `make-move`
 
@@ -84,17 +97,18 @@ Bridges `ChessPlayer` class state into React rendering:
 
 ```typescript
 function useChessPlayer(config: PlayerConfig): {
-  messages: ReadonlyArray<Message>;
+  id: string;
+  name: string;
   status: PlayerStatus;
   error: string | null;
-  generate: (prompt: string) => Promise<{ text: string; toolCalls: ToolCallData[] }>;
-  addSystemMessage: (content: string) => void;
-  reset: () => void;
+  messageLog: LogEntry[];
+  generate: (messages: Message[], opponent?: { name: string; color: ChessColor }) => Promise<{ text: string; toolCalls: ToolCallData[] }>;
 }
 ```
 
 - Lazy-initializes `ChessPlayer` instance via `useRef` (avoids re-creation on render)
-- Mirrors class state into React `useState` after each operation
+- Dynamically syncs mutable config (`name`, `model`, `systemPrompt`, `fischer960`) to the player on each render
+- Mirrors class state (`status`, `error`, `messageLog`) into React `useState` after each `generate` call
 - `generate` sets status to `'thinking'` while awaiting the LLM
 
 ## System Prompts
@@ -125,15 +139,16 @@ Custom prompts can be edited on the Settings page and are stored in localStorage
 ## Data Flow: AI Move
 
 ```
-1. Parent component calls generate(prompt)
+1. Parent component calls generate(messages, opponent)
 2. useChessPlayer sets status → 'thinking'
-3. ChessPlayer.generate() appends user message
+3. ChessPlayer.convertMessages() transforms shared Message[] to LLM format
 4. generateText() calls OpenRouter API
 5. LLM returns text + make-move tool call
 6. Tool call parsed into ToolCallData
-7. Response appended to message history
-8. useChessPlayer syncs messages/status to React state
-9. Panel renders MessageBubble with move + reasoning
+7. Log entry appended to messageLog (request + response + usage)
+8. useChessPlayer syncs status/messageLog to React state
+9. Parent adds agent response + tool result to shared messages
+10. Panel renders MessageBubble with move + reasoning
 ```
 
 ## Configuration

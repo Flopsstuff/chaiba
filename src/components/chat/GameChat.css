@@ -95,6 +95,46 @@
   padding: 0 4px;
 }
 
+.game-chat__controls {
+  display: flex;
+  gap: 6px;
+  padding: 6px 12px;
+  border-top: 1px solid #ddd;
+  background: #f0f0f0;
+  justify-content: center;
+}
+
+.game-chat__ctrl-btn {
+  padding: 4px 12px;
+  background-color: #455a64;
+  color: white;
+  border: 1px solid #607d8b;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.game-chat__ctrl-btn:hover:not(:disabled) {
+  background-color: #546e7a;
+}
+
+.game-chat__ctrl-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.game-chat__auto-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #455a64;
+  cursor: pointer;
+  padding: 0 4px;
+}
+
 .game-chat__input-row {
   display: flex;
   gap: 8px;

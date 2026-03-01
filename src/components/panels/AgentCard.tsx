@@ -29,8 +29,9 @@ function getAvailableModels(): { id: string; name?: string }[] {
 }
 
 export interface AgentCardHandle {
-  generate: (messages: Message[], opponent?: { name: string; color: ChessColor }) => Promise<{ text: string; toolCalls: ToolCallData[] }>;
+  generate: (messages: Message[], opponent?: { name: string; color: ChessColor }) => Promise<{ text: string; toolCalls: ToolCallData[]; cost: number }>;
   rerollName: () => void;
+  clearLog: () => void;
   id: string;
   name: string;
   color: ChessColor;
@@ -66,7 +67,7 @@ export const AgentCard = forwardRef<AgentCardHandle, AgentCardProps>(
       fischer960,
     }), [agentName, color, selectedModel, systemPrompt, fischer960]);
 
-    const { id, name, status, error, messageLog, generate } = useChessPlayer(config);
+    const { id, name, status, error, messageLog, generate, clearLog } = useChessPlayer(config);
     const [showLog, setShowLog] = useState(false);
 
     const rerollName = useCallback(() => {
@@ -76,6 +77,7 @@ export const AgentCard = forwardRef<AgentCardHandle, AgentCardProps>(
     useImperativeHandle(ref, () => ({
       generate,
       rerollName,
+      clearLog,
       id,
       name,
       color,
@@ -237,11 +239,18 @@ export const AgentCard = forwardRef<AgentCardHandle, AgentCardProps>(
                       {entry.messages.map((msg, mi) => {
                         const m = msg as Record<string, unknown>;
                         const role = String(m.role || 'unknown');
-                        const preview = role === 'system'
-                          ? (String(m.content || '')).slice(0, 60) + '...'
-                          : role === 'assistant' && m.toolCalls
-                            ? `tool: ${JSON.stringify(m.toolCalls)}`
-                            : (String(m.content || m.text || '')).slice(0, 60);
+                        const extractText = (v: unknown): string => {
+                          if (typeof v === 'string') return v;
+                          if (Array.isArray(v)) return v.map(item => {
+                            const it = item as Record<string, unknown>;
+                            return it.text || it.value || '';
+                          }).filter(Boolean).join(' ');
+                          return '';
+                        };
+                        const raw = extractText(m.content) || extractText(m.text);
+                        const preview = role === 'assistant' && m.toolCalls
+                          ? `tool: ${JSON.stringify(m.toolCalls)}`
+                          : raw.slice(0, 100);
                         return (
                           <details key={mi} className="agent-log__msg">
                             <summary className="agent-log__msg-summary">

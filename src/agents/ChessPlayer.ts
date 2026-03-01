@@ -176,7 +176,7 @@ export class ChessPlayer {
     });
   }
 
-  async generate(messages: Message[], opponent?: { name: string; color: ChessColor }): Promise<{ text: string; toolCalls: ToolCallData[] }> {
+  async generate(messages: Message[], opponent?: { name: string; color: ChessColor }): Promise<{ text: string; toolCalls: ToolCallData[]; cost: number }> {
     this._status = 'thinking';
     this._error = null;
 
@@ -224,7 +224,8 @@ export class ChessPlayer {
       });
 
       this._status = 'idle';
-      return { text: responseText, toolCalls };
+      const cost = typeof result.usage?.raw?.cost === 'number' ? result.usage.raw.cost : 0;
+      return { text: responseText, toolCalls, cost };
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
       this._status = 'error';
