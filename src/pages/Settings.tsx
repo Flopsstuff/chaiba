@@ -28,6 +28,8 @@ export function Settings() {
   const [prompts, setPrompts] = useState<ChessPromptsData>(DEFAULT_PROMPTS);
   const [promptsSaved, setPromptsSaved] = useState(false);
   const [sendContext, setSendContext] = useState(true);
+  const [retryAttempts, setRetryAttempts] = useState(0);
+  const [sendFenOnError, setSendFenOnError] = useState(false);
 
   useEffect(() => {
     const storedKey = localStorage.getItem(API_KEY_STORAGE);
@@ -44,6 +46,12 @@ export function Settings() {
 
     const storedContext = localStorage.getItem('send_context_message');
     setSendContext(storedContext !== 'false');
+
+    const storedRetry = localStorage.getItem('retry_attempts');
+    setRetryAttempts(storedRetry ? parseInt(storedRetry, 10) : 0);
+
+    const storedFenOnError = localStorage.getItem('send_fen_on_error');
+    setSendFenOnError(storedFenOnError === 'true');
   }, []);
 
   const handleSavePrompts = () => {
@@ -301,6 +309,45 @@ export function Settings() {
               />
               Send board context (FEN + move history) before each move
             </label>
+            <label className="settings-checkbox">
+              <input
+                type="checkbox"
+                checked={sendFenOnError}
+                onChange={(e) => {
+                  setSendFenOnError(e.target.checked);
+                  localStorage.setItem('send_fen_on_error', String(e.target.checked));
+                }}
+              />
+              Send FEN when agent makes invalid move
+            </label>
+            <div className="settings-retry">
+              <label className="settings-checkbox">
+                <input
+                  type="checkbox"
+                  checked={retryAttempts > 0}
+                  onChange={(e) => {
+                    const value = e.target.checked ? 3 : 0;
+                    setRetryAttempts(value);
+                    localStorage.setItem('retry_attempts', String(value));
+                  }}
+                />
+                Retry on invalid move
+              </label>
+              {retryAttempts > 0 && (
+                <input
+                  type="number"
+                  className="settings-retry__input"
+                  min={1}
+                  max={10}
+                  value={retryAttempts}
+                  onChange={(e) => {
+                    const value = Math.max(1, Math.min(10, parseInt(e.target.value, 10) || 1));
+                    setRetryAttempts(value);
+                    localStorage.setItem('retry_attempts', String(value));
+                  }}
+                />
+              )}
+            </div>
           </div>
         </div>
       </div>

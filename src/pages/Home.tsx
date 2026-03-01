@@ -100,6 +100,11 @@ export function Home() {
 
     setThinkingColor(color);
 
+    // Get retry settings
+    const retryAttempts = parseInt(localStorage.getItem('retry_attempts') || '0', 10);
+    const sendFenOnError = localStorage.getItem('send_fen_on_error') === 'true';
+    const maxAttempts = retryAttempts + 1; // 1 initial + N retries
+
     // Build context message with current FEN and move history (if enabled)
     const sendContext = localStorage.getItem('send_context_message') !== 'false';
     let messagesForAgent = [...sharedMessagesRef.current];
@@ -129,68 +134,95 @@ export function Home() {
 
     try {
       let moveSucceeded = false;
-      const result = await agent.generate(messagesForAgent, opponent, state.fullmoveNumber);
-      if (result.cost) setTotalCost((prev) => prev + result.cost);
+      let attempt = 0;
 
-      // Record agent response in shared history
-      const agentMessage: Message = {
-        sender: 'agent',
-        agentId: agent.id,
-        agentName: agent.name,
-        content: result.text,
-        toolCalls: result.toolCalls.length > 0 ? result.toolCalls : undefined,
-      };
+      while (attempt < maxAttempts && !moveSucceeded) {
+        attempt++;
+        const isRetry = attempt > 1;
 
-      // Send agent's text to the shared chat
-      if (result.text) {
-        chatRef.current?.addAgentMessage(agent.name, color, result.text);
-      }
-
-      const newMessages = [...messagesForAgent, agentMessage];
-
-      // Process make-move tool call
-      const moveCall = result.toolCalls.find((tc) => tc.tool === 'make-move');
-      if (moveCall) {
-        const moveSan = moveCall.args.move as string;
-        const moveResult = engine.moveSAN(moveSan);
-
-        let toolResultContent: string;
-        if (moveResult.success) {
-          setGameState(engine.getState());
-          const history = engine.getHistory();
-          const last = history[history.length - 1];
-          if (last) setLastMove({ from: last.from, to: last.to });
-          const updatedSan = engine.getSAN();
-          setSanMoves(updatedSan);
-          const lastSan = updatedSan[updatedSan.length - 1];
-          const moveNum = Math.ceil(updatedSan.length / 2);
-          const side = updatedSan.length % 2 === 1 ? 'White' : 'Black';
-          toolResultContent = `Move ${lastSan} accepted.`;
-          chatRef.current?.addSystemMessage(`${moveNum}. ${side}: ${lastSan}`);
-          moveSucceeded = true;
-        } else {
-          toolResultContent = `Invalid move "${moveSan}": ${moveResult.error}`;
-          chatRef.current?.addSystemMessage(`${agent.name} tried invalid move: ${moveSan} — ${moveResult.error}`);
+        if (isRetry) {
+          chatRef.current?.addSystemMessage(`Retry attempt ${attempt - 1}/${retryAttempts}...`);
         }
 
-        const toolResultMessage: Message = {
-          sender: 'system',
+        const result = await agent.generate(messagesForAgent, opponent, state.fullmoveNumber);
+        if (result.cost) setTotalCost((prev) => prev + result.cost);
+
+        // Record agent response in shared history
+        const agentMessage: Message = {
+          sender: 'agent',
           agentId: agent.id,
-          content: toolResultContent,
-          toolResultFor: {
-            callId: moveCall.id,
-            toolName: moveCall.tool,
-          },
+          agentName: agent.name,
+          content: result.text,
+          toolCalls: result.toolCalls.length > 0 ? result.toolCalls : undefined,
         };
 
-        newMessages.push(toolResultMessage);
-      } else {
-        // Agent responded without making a move
-        chatRef.current?.addSystemMessage(`${agent.name} responded without making a move.`);
+        // Send agent's text to the shared chat
+        if (result.text) {
+          chatRef.current?.addAgentMessage(agent.name, color, result.text);
+        }
+
+        messagesForAgent = [...messagesForAgent, agentMessage];
+
+        // Process make-move tool call
+        const moveCall = result.toolCalls.find((tc) => tc.tool === 'make-move');
+        if (moveCall) {
+          const moveSan = moveCall.args.move as string;
+          const moveResult = engine.moveSAN(moveSan);
+
+          let toolResultContent: string;
+          if (moveResult.success) {
+            setGameState(engine.getState());
+            const history = engine.getHistory();
+            const last = history[history.length - 1];
+            if (last) setLastMove({ from: last.from, to: last.to });
+            const updatedSan = engine.getSAN();
+            setSanMoves(updatedSan);
+            const lastSan = updatedSan[updatedSan.length - 1];
+            const moveNum = Math.ceil(updatedSan.length / 2);
+            const side = updatedSan.length % 2 === 1 ? 'White' : 'Black';
+            toolResultContent = `Move ${lastSan} accepted.`;
+            chatRef.current?.addSystemMessage(`${moveNum}. ${side}: ${lastSan}`);
+            moveSucceeded = true;
+          } else {
+            toolResultContent = `Invalid move "${moveSan}": ${moveResult.error}`;
+            chatRef.current?.addSystemMessage(`${agent.name} tried invalid move: ${moveSan} — ${moveResult.error}`);
+
+            // Add FEN context on error if enabled and we have retries left
+            if (sendFenOnError && attempt < maxAttempts) {
+              const currentFen = engine.getFEN();
+              toolResultContent += `\n\nCurrent position (FEN): ${currentFen}\nPlease try a valid move.`;
+            }
+          }
+
+          const toolResultMessage: Message = {
+            sender: 'system',
+            agentId: agent.id,
+            content: toolResultContent,
+            toolResultFor: {
+              callId: moveCall.id,
+              toolName: moveCall.tool,
+            },
+          };
+
+          messagesForAgent = [...messagesForAgent, toolResultMessage];
+        } else {
+          // Agent responded without making a move
+          chatRef.current?.addSystemMessage(`${agent.name} responded without making a move.`);
+
+          // Add hint for retry
+          if (attempt < maxAttempts) {
+            const hintMsg: Message = {
+              sender: 'system',
+              agentId: agent.id,
+              content: `You must call the make-move tool with your move. ${sendFenOnError ? `Current FEN: ${engine.getFEN()}` : ''}`,
+            };
+            messagesForAgent = [...messagesForAgent, hintMsg];
+          }
+        }
       }
 
-      sharedMessagesRef.current = newMessages;
-      setSharedMessages(newMessages);
+      sharedMessagesRef.current = messagesForAgent;
+      setSharedMessages(messagesForAgent);
       return moveSucceeded;
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : String(err);
