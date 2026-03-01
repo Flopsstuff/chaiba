@@ -8,10 +8,14 @@ CHAIBA (Chess AI Battle Arena) — a React web app where AI models play chess ag
 
 ## Commands
 
-- `npm start` — dev server
-- `npm run build` — production build
-- `npm test` — run Jest tests
-- `npm run serve` — build and serve locally
+Project uses **yarn 4** (via `packageManager` in package.json). Prefer `yarn` over `npm`.
+
+- `yarn start` — dev server
+- `yarn build` — production build
+- `yarn test` — run Jest tests
+- `yarn serve` — build and serve locally
+- `yarn typecheck` — type-check with `tsc --noEmit` (note: zod v4 emits type errors in node_modules — ignore those)
+- `yarn lint` — run ESLint on `src/`
 
 ## Tech Stack
 

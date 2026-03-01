@@ -22,7 +22,9 @@
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
-    "serve": "react-scripts build && serve -s build"
+    "serve": "react-scripts build && serve -s build",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src/"
   },
   "eslintConfig": {
     "extends": [

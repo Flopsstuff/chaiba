@@ -135,8 +135,11 @@ export function Home() {
     try {
       let moveSucceeded = false;
       let attempt = 0;
+      const baseLength = messagesForAgent.length; // before retry loop
+      let attemptStartIdx = baseLength;
 
       while (attempt < maxAttempts && !moveSucceeded) {
+        attemptStartIdx = messagesForAgent.length;
         attempt++;
         const isRetry = attempt > 1;
 
@@ -221,8 +224,14 @@ export function Home() {
         }
       }
 
-      sharedMessagesRef.current = messagesForAgent;
-      setSharedMessages(messagesForAgent);
+      // Only persist base + final attempt to shared messages
+      // so failed retry moves don't leak into the opponent's context
+      const finalMessages = [
+        ...messagesForAgent.slice(0, baseLength),
+        ...messagesForAgent.slice(attemptStartIdx),
+      ];
+      sharedMessagesRef.current = finalMessages;
+      setSharedMessages(finalMessages);
       return moveSucceeded;
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : String(err);
