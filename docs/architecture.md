@@ -33,7 +33,7 @@ src/
 │   ├── types.ts          # Piece, Board, GameState, CastlingRights
 │   └── rules.ts          # getLegalMoves, isInCheck, isCheckmate, isStalemate
 ├── components/
-│   ├── Header.tsx/.css       # App header with navigation + game controls (Reset)
+│   ├── Header.tsx/.css       # App header with navigation + total cost display
 │   ├── GitHubLogo.tsx/.css   # GitHub link icon
 │   ├── ColorSpinner.tsx/.css # Animated spinner with color (white/black)
 │   ├── chess/                # Chess board UI
@@ -87,7 +87,7 @@ App
     │   ├── Arena (center, forwards ref to GameChat)
     │   │   ├── ChessBoard (gameState, onMove)
     │   │   │   └── ChessSquare[] + ChessPiece[]
-    │   │   └── GameChat (imperative handle: addSystemMessage, clear)
+    │   │   └── GameChat (imperative handle: addSystemMessage, addAgentMessage, clear; FEN/SAN buttons)
     │   └── BlackPanel (right, collapsible, fischer960)
     │       └── AgentCard (color, messages, fischer960)
     │           ├── ColorSpinner (color, spinning)
@@ -105,16 +105,17 @@ No global state library. State is managed through:
    - `openrouter_api_key` — API key for OpenRouter
    - `selected_models` — JSON array of selected model objects
    - `chess_prompts` — custom system prompts
+   - `send_context_message` — whether to include FEN/move history before each move
 
 3. **`ChessEngine` instance** — owned by `Home` via `useRef`:
    - Single source of truth for game state and move history
    - `gameState` and `sanMoves` synced to React state after each move/reset
-   - GameChat controlled via imperative ref (`addSystemMessage`, `clear`)
+   - GameChat controlled via imperative ref (`addSystemMessage`, `addAgentMessage`, `clear`)
 
 4. **`useChessPlayer` hook** — bridges `ChessPlayer` class and React state:
    - Lazy-initializes `ChessPlayer` via `useRef`
    - Dynamically syncs mutable config (`name`, `model`, `systemPrompt`, `fischer960`)
-   - Returns `{ id, name, status, error, messageLog, generate }`
+   - Returns `{ id, name, status, error, messageLog, generate, clearLog }`
 
 ## AI Integration
 
@@ -136,11 +137,16 @@ The Home page uses a responsive 3-column flexbox layout with a toolbar above:
 └──────────┴───────────────┴──────────┘
 ```
 
-The toolbar contains toggle buttons for each side panel and a central notation area displaying live SAN move history from the engine. Side panels are toggled via the toolbar buttons. At the 768px breakpoint, panels start collapsed.
+The toolbar contains toggle buttons for each side panel and a central notation area displaying live SAN move history from the engine. Clicking the notation area copies move history to clipboard. Side panels are toggled via the toolbar buttons. At the 768px breakpoint, panels start collapsed.
 
-The header includes a **Reset** button with dual behavior:
-- **Click**: Reset to standard starting position
-- **Long-press** (600ms): Reset to Chess960 (Fischer Random) position
+The GameChat controls include:
+- **Reset** button with dual behavior: click for standard reset, long-press (600ms) for Chess960
+- **Move** buttons (white/black) to trigger agent moves
+- **Auto** checkbox for auto-play mode
+- **FEN** button — sends current board position (FEN) to chat as a moderator message
+- **SAN** button — sends move history to chat as a moderator message
+
+The Header displays the cumulative API cost for the current game session.
 
 ## Key Architectural Decisions
 
@@ -151,3 +157,5 @@ The header includes a **Reset** button with dual behavior:
 5. **Class + hook pattern** — `ChessPlayer` class holds logic; `useChessPlayer` hook bridges it to React rendering
 6. **Component-scoped CSS** — each component has a paired CSS file, no CSS-in-JS overhead
 7. **AgentCard abstraction** — shared `AgentCard` component handles model selection, prompt display, message rendering, call cost tracking, and debug message log for both white and black panels, reducing duplication
+8. **Manual moves as agent messages** — board drag-and-drop moves are recorded as fake tool-call + tool-result pairs in sharedMessages, so both agents see them through the standard `convertMessages()` routing
+9. **Structured cache control** — Anthropic prompt caching uses `Message.moveNumber` metadata rather than string parsing, keeping the caching logic decoupled from message content format

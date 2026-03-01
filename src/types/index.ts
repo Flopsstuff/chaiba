@@ -22,6 +22,10 @@ export interface Message {
     callId: string;
     toolName: string;
   };
+  /** For context messages: the engine's fullmoveNumber when this message was created */
+  moveNumber?: number;
+  /** For context messages: whose turn it is */
+  moveColor?: ChessColor;
 }
 
 export interface PlayerConfig {

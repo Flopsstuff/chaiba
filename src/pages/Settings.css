@@ -142,6 +142,33 @@
 .model-id {
   font-size: 13px;
   font-family: monospace;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.model-badge {
+  font-size: 10px;
+  font-weight: 500;
+  padding: 1px 5px;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+
+.model-badge--tools {
+  color: #2e7d32;
+  background: #e8f5e9;
+}
+
+.model-price {
+  font-size: 11px;
+  color: #888;
+  white-space: nowrap;
+  margin-left: auto;
+  padding: 1px 6px;
+  background: #f0f0f0;
+  border-radius: 3px;
 }
 
 .settings-label--small {

@@ -9,6 +9,9 @@ const MODELS_STORAGE = 'selected_models';
 interface ApiModel {
   id: string;
   name: string;
+  promptPrice?: number;
+  completionPrice?: number;
+  supportsTools?: boolean;
 }
 
 export function Settings() {
@@ -105,9 +108,12 @@ export function Settings() {
       const response = await fetch('https://openrouter.ai/api/v1/models');
       if (response.ok) {
         const data = await response.json();
-        const models = data.data.map((m: { id: string; name: string }) => ({
+        const models = data.data.map((m: { id: string; name: string; pricing?: { prompt?: string; completion?: string }; supported_parameters?: string[] }) => ({
           id: m.id,
           name: m.name,
+          promptPrice: m.pricing?.prompt ? parseFloat(m.pricing.prompt) : undefined,
+          completionPrice: m.pricing?.completion ? parseFloat(m.pricing.completion) : undefined,
+          supportsTools: m.supported_parameters?.includes('tools') ?? false,
         }));
         setAllModels(models);
       }
@@ -128,6 +134,14 @@ export function Settings() {
     }
     setSelectedModels(newSelected);
     localStorage.setItem(MODELS_STORAGE, JSON.stringify(newSelected));
+  };
+
+  const formatPrice = (pricePerToken: number | undefined) => {
+    if (pricePerToken === undefined) return null;
+    if (pricePerToken === 0) return 'Free';
+    const perMillion = pricePerToken * 1_000_000;
+    if (perMillion < 0.01) return '<$0.01/M';
+    return `$${perMillion % 1 === 0 ? perMillion.toFixed(0) : perMillion.toFixed(2)}/M`;
   };
 
   const filteredModels = allModels
@@ -213,6 +227,12 @@ export function Settings() {
                         onChange={() => toggleModel(model)}
                       />
                       <span className="model-id">{model.id}</span>
+                      {model.supportsTools && (
+                        <span className="model-badge model-badge--tools">tools</span>
+                      )}
+                      {formatPrice(model.promptPrice) && (
+                        <span className="model-price">{formatPrice(model.promptPrice)}</span>
+                      )}
                     </label>
                   ))}
                 </div>

@@ -40,7 +40,7 @@ class ChessPlayer {
   get messageLog(): { timestamp: number; messages: unknown[] }[];
 
   clearLog(): void;
-  generate(messages: Message[], opponent?: { name: string; color: ChessColor }): Promise<{ text: string; toolCalls: ToolCallData[] }>;
+  generate(messages: Message[], opponent?: { name: string; color: ChessColor }, moveNumber?: number): Promise<{ text: string; toolCalls: ToolCallData[]; cost: number }>;
 }
 ```
 
@@ -72,7 +72,17 @@ Each `generate()` call appends a log entry with timestamp and the full request/r
 
 ### Anthropic Prompt Caching
 
-For Anthropic models (`anthropic/*`), the first two messages are annotated with `cacheControl: { type: 'ephemeral' }` to enable prompt caching via OpenRouter.
+For Anthropic models (`anthropic/*`), a single `cacheControl: { type: 'ephemeral' }` breakpoint is placed on a context message to enable prompt caching via OpenRouter. The breakpoint advances every 10 full moves (at moves 1, 11, 21, ...) so the cached prefix grows steadily with the game.
+
+**How it works:**
+
+1. `generate()` receives `moveNumber` (the engine's `fullmoveNumber`)
+2. `convertMessages()` returns both the converted `ModelMessage[]` and a `moveCommandIndices` map — a `Map<index, moveNumber>` tracking which converted message indices are context messages and their associated move numbers
+3. `withAnthropicPromptCache()` calculates the boundary move: `floor((moveNumber - 1) / 10) * 10 + 1`
+4. It looks up the last entry in `moveCommandIndices` whose move number is at or before the boundary
+5. That message gets annotated with `cacheControl` — everything before it becomes a cached prefix
+
+This approach uses structured data (`Message.moveNumber`) rather than string parsing, making it robust regardless of whether FEN/move history is included in context messages or not.
 
 ### Tool: `make-move`
 
@@ -102,7 +112,8 @@ function useChessPlayer(config: PlayerConfig): {
   status: PlayerStatus;
   error: string | null;
   messageLog: LogEntry[];
-  generate: (messages: Message[], opponent?: { name: string; color: ChessColor }) => Promise<{ text: string; toolCalls: ToolCallData[] }>;
+  generate: (messages: Message[], opponent?: { name: string; color: ChessColor }, moveNumber?: number) => Promise<{ text: string; toolCalls: ToolCallData[]; cost: number }>;
+  clearLog: () => void;
 }
 ```
 
@@ -139,16 +150,18 @@ Custom prompts can be edited on the Settings page and are stored in localStorage
 ## Data Flow: AI Move
 
 ```
-1. Parent component calls generate(messages, opponent)
-2. useChessPlayer sets status → 'thinking'
-3. ChessPlayer.convertMessages() transforms shared Message[] to LLM format
-4. generateText() calls OpenRouter API
-5. LLM returns text + make-move tool call
-6. Tool call parsed into ToolCallData
-7. Log entry appended to messageLog (request + response + usage)
-8. useChessPlayer syncs status/messageLog to React state
-9. Parent adds agent response + tool result to shared messages
-10. Panel renders MessageBubble with move + reasoning
+1. Home.handleAgentMove(color) builds context message with MoveCommand, moveNumber, moveColor
+2. Calls agent.generate(messages, opponent, state.fullmoveNumber)
+3. useChessPlayer sets status → 'thinking'
+4. ChessPlayer.convertMessages() transforms shared Message[] to LLM format + moveCommandIndices map
+5. ChessPlayer.withAnthropicPromptCache() annotates cache breakpoint (Anthropic models only)
+6. generateText() calls OpenRouter API
+7. LLM returns text + make-move tool call
+8. Tool call parsed into ToolCallData, cost extracted from usage metadata
+9. Log entry appended to messageLog (request + response + usage)
+10. useChessPlayer syncs status/messageLog to React state
+11. Home validates move via ChessEngine, adds agent response + tool result to sharedMessages
+12. Panel renders MessageBubble with move + reasoning
 ```
 
 ## Configuration
@@ -160,5 +173,16 @@ All configuration is stored in `localStorage`:
 | `openrouter_api_key` | `string` | — | OpenRouter API key (required) |
 | `selected_models` | `JSON array` | — | Selected models from OpenRouter catalog |
 | `chess_prompts` | `JSON object` | — | Custom system prompts per color |
+| `send_context_message` | `string` | `'true'` | Whether to include FEN + move history in context messages |
 
 Model selection falls back to `openai/gpt-4o` if no models are configured.
+
+## Manual Moves
+
+When a user makes a move on the board (drag & drop), it is recorded in `sharedMessages` as a fake tool-call + tool-result pair from the corresponding agent. This ensures both agents see the move correctly:
+- The agent whose color made the move sees it as its own tool call + result
+- The opponent sees it as `"Opponent played X."` via the standard `convertMessages()` routing
+
+## Cost Tracking
+
+Each `generate()` call returns a `cost` field extracted from the OpenRouter response metadata (`usage.raw.cost`). Home accumulates total cost across both agents and displays it in the Header.

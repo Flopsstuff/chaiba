@@ -29,7 +29,7 @@ function getAvailableModels(): { id: string; name?: string }[] {
 }
 
 export interface AgentCardHandle {
-  generate: (messages: Message[], opponent?: { name: string; color: ChessColor }) => Promise<{ text: string; toolCalls: ToolCallData[]; cost: number }>;
+  generate: (messages: Message[], opponent?: { name: string; color: ChessColor }, moveNumber?: number) => Promise<{ text: string; toolCalls: ToolCallData[]; cost: number }>;
   rerollName: () => void;
   clearLog: () => void;
   id: string;
@@ -69,6 +69,7 @@ export const AgentCard = forwardRef<AgentCardHandle, AgentCardProps>(
 
     const { id, name, status, error, messageLog, generate, clearLog } = useChessPlayer(config);
     const [showLog, setShowLog] = useState(false);
+    const gameStarted = messages.length > 0;
 
     const rerollName = useCallback(() => {
       setAgentName(randomName());
@@ -130,7 +131,7 @@ export const AgentCard = forwardRef<AgentCardHandle, AgentCardProps>(
           <div className="agent-card__name-row">
             <ColorSpinner color={color} spinning={status === 'thinking'} />
             <span className="agent-card__name">{agentName}</span>
-            {messages.length === 0 && (
+            {!gameStarted && (
               <button
                 className="agent-card__reroll"
                 onClick={rerollName}
@@ -159,7 +160,7 @@ export const AgentCard = forwardRef<AgentCardHandle, AgentCardProps>(
               className="agent-card__select"
               value={selectedModel}
               onChange={e => setSelectedModel(e.target.value)}
-              disabled={messages.length > 0}
+              disabled={gameStarted}
             >
               {availableModels.map(m => (
                 <option key={m.id} value={m.id}>
@@ -183,6 +184,7 @@ export const AgentCard = forwardRef<AgentCardHandle, AgentCardProps>(
               className="agent-card__textarea"
               value={customPrompt}
               onChange={e => setCustomPrompt(e.target.value)}
+              disabled={gameStarted}
               rows={3}
               placeholder="Additional instructions for this agent..."
             />
@@ -214,26 +216,24 @@ export const AgentCard = forwardRef<AgentCardHandle, AgentCardProps>(
                   <div className="agent-log__empty">No messages yet.</div>
                 )}
                 {messageLog.map((entry, ci) => (
-                  <details key={ci} className="agent-log__call">
+                  <div key={ci} className="agent-log__call-wrap">
+                    <button
+                      className="agent-log__copy"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigator.clipboard.writeText(JSON.stringify(entry.messages, null, 2));
+                        const el = e.currentTarget;
+                        el.textContent = 'Copied';
+                        setTimeout(() => { el.textContent = 'Copy'; }, 1500);
+                      }}
+                    >
+                      Copy
+                    </button>
+                    <details className="agent-log__call">
                     <summary className="agent-log__call-summary">
                       Call #{ci + 1} — {new Date(entry.timestamp).toLocaleTimeString()}
                       <span className="agent-log__call-count">{entry.messages.length} msgs</span>
                       {(() => { const c = getCallCost(entry); return c !== null ? <span className="agent-log__call-cost">${c.toFixed(4)}</span> : null; })()}
-                      <span
-                        role="button"
-                        tabIndex={0}
-                        className="agent-log__copy"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          e.preventDefault();
-                          navigator.clipboard.writeText(JSON.stringify(entry.messages, null, 2));
-                          const el = e.currentTarget;
-                          el.textContent = 'Copied';
-                          setTimeout(() => { el.textContent = 'Copy'; }, 1500);
-                        }}
-                      >
-                        Copy
-                      </span>
                     </summary>
                     <div className="agent-log__call-messages">
                       {entry.messages.map((msg, mi) => {
@@ -265,6 +265,7 @@ export const AgentCard = forwardRef<AgentCardHandle, AgentCardProps>(
                       })}
                     </div>
                   </details>
+                  </div>
                 ))}
               </div>
             </div>

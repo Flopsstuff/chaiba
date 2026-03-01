@@ -13,7 +13,7 @@ export interface UseChessPlayerReturn {
   status: PlayerStatus;
   error: string | null;
   messageLog: LogEntry[];
-  generate: (messages: Message[], opponent?: { name: string; color: ChessColor }) => Promise<{ text: string; toolCalls: ToolCallData[]; cost: number }>;
+  generate: (messages: Message[], opponent?: { name: string; color: ChessColor }, moveNumber?: number) => Promise<{ text: string; toolCalls: ToolCallData[]; cost: number }>;
   clearLog: () => void;
 }
 
@@ -40,13 +40,13 @@ export function useChessPlayer(config: PlayerConfig): UseChessPlayerReturn {
   const id = player.id;
   const name = player.name;
 
-  const generate = useCallback(async (messages: Message[], opponent?: { name: string; color: ChessColor }) => {
+  const generate = useCallback(async (messages: Message[], opponent?: { name: string; color: ChessColor }, moveNumber?: number) => {
     const player = getPlayer();
     setStatus('thinking');
     setError(null);
 
     try {
-      const result = await player.generate(messages, opponent);
+      const result = await player.generate(messages, opponent, moveNumber);
       setMessageLog([...player.messageLog]);
       setStatus('idle');
       return result;

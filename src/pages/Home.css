@@ -57,6 +57,12 @@
   padding: 2px 8px;
   height: 24px;
   line-height: 24px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.toolbar__notation--copied {
+  background: rgba(78, 201, 176, 0.2);
 }
 
 .toolbar__notation-empty {

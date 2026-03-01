@@ -272,15 +272,19 @@
 }
 
 /* Call-level collapsible */
-.agent-log__call {
+.agent-log__call-wrap {
+  position: relative;
   margin-bottom: 4px;
+}
+
+.agent-log__call {
   border: 1px solid #333;
   border-radius: 4px;
 }
 
 .agent-log__call-summary {
   cursor: pointer;
-  padding: 6px 10px;
+  padding: 6px 60px 6px 10px;
   font-size: 12px;
   font-weight: 600;
   color: #9cdcfe;
@@ -311,8 +315,9 @@
 }
 
 .agent-log__copy {
-  flex-shrink: 0;
-  margin-left: 8px;
+  position: absolute;
+  top: 7px;
+  right: 8px;
   padding: 1px 8px;
   font-size: 10px;
   background: #333;
@@ -320,6 +325,7 @@
   border: 1px solid #555;
   border-radius: 3px;
   cursor: pointer;
+  z-index: 1;
 }
 
 .agent-log__copy:hover {

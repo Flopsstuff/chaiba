@@ -57,8 +57,12 @@ export class ChessPlayer {
     };
   }
 
-  // Converts internal messages to OpenRouter messages adds system prompt and initial messages
-  private convertMessages(messages: Message[], opponent?: { name: string; color: ChessColor }): ModelMessage[] {
+  /** Index of a context message in the converted ModelMessage array, with its move number */
+  private convertMessages(messages: Message[], opponent?: { name: string; color: ChessColor }): {
+    messages: ModelMessage[];
+    /** Maps converted array index → moveNumber for context (MoveCommand) messages */
+    moveCommandIndices: Map<number, number>;
+  } {
     const opponentInfo = opponent
       ? ` Your opponent is ${opponent.name}, playing ${opponent.color}.`
       : '';
@@ -67,6 +71,7 @@ export class ChessPlayer {
       { role: 'user', content: `[SYSTEM]: Chess game started.${modeInfo} You are ${this.name}, playing ${this.color}.${opponentInfo} Make your moves using the 'make-move' tool after ${MoveCommand}. Confirm your name and color and your ready to play.` },
       { role: 'assistant', content: `I am ${this.name}, playing ${this.color}. I will use the 'make-move' tool to submit my moves after ${MoveCommand}.` },
     ];
+    const moveCommandIndices = new Map<number, number>();
 
     for (const m of messages) {
       if (!m.content && !m.toolCalls?.length && !m.toolResultFor) continue;
@@ -141,30 +146,50 @@ export class ChessPlayer {
       } else {
         label = '[MODERATOR]';
       }
+      if (m.moveNumber != null) {
+        moveCommandIndices.set(result.length, m.moveNumber);
+      }
       result.push({ role: 'user', content: `${label}: ${m.content}` });
     }
 
-    return result;
+    return { messages: result, moveCommandIndices };
   }
 
   private get isAnthropicModel(): boolean {
     return this.model.startsWith('anthropic/');
   }
 
-  private withAnthropicPromptCache(messages: ModelMessage[]): ModelMessage[] {
-    if (!this.isAnthropicModel) return messages;
+  private withAnthropicPromptCache(
+    messages: ModelMessage[],
+    moveCommandIndices: Map<number, number>,
+    moveNumber: number,
+  ): ModelMessage[] {
+    if (!this.isAnthropicModel || moveNumber < 2) return messages;
 
-    // Anthropic prompt caching works best on stable prefix blocks.
+    // Place a single cache breakpoint so the stable prefix gets cached.
+    // Breakpoint advances every 10 full moves (at moves 1, 11, 21, ...).
+    const cacheEvery = 10;
+    const breakpointMove = Math.floor((moveNumber - 1) / cacheEvery) * cacheEvery + 1;
+
+    // Find the last context message whose moveNumber <= breakpointMove
+    let breakpointIndex = -1;
+    moveCommandIndices.forEach((msgMoveNum, index) => {
+      if (msgMoveNum <= breakpointMove) {
+        breakpointIndex = index;
+      }
+    });
+
+    if (breakpointIndex === -1) return messages;
+
     return messages.map((message, index) => {
-      if (index > 1) return message;
-      if (typeof message.content !== 'string') return message;
+      if (index !== breakpointIndex) return message;
 
       return {
         ...message,
         content: [
           {
             type: 'text',
-            text: message.content,
+            text: message.content as string,
             providerOptions: {
               openrouter: {
                 cacheControl: { type: 'ephemeral' },
@@ -176,7 +201,7 @@ export class ChessPlayer {
     });
   }
 
-  async generate(messages: Message[], opponent?: { name: string; color: ChessColor }): Promise<{ text: string; toolCalls: ToolCallData[]; cost: number }> {
+  async generate(messages: Message[], opponent?: { name: string; color: ChessColor }, moveNumber: number = 1): Promise<{ text: string; toolCalls: ToolCallData[]; cost: number }> {
     this._status = 'thinking';
     this._error = null;
 
@@ -184,7 +209,8 @@ export class ChessPlayer {
       if (!localStorage.getItem(API_KEY_STORAGE)) {
         throw new Error('OpenRouter API key not set. Configure in Settings.');
       }
-      const coreMessages = this.withAnthropicPromptCache(this.convertMessages(messages, opponent));
+      const converted = this.convertMessages(messages, opponent);
+      const coreMessages = this.withAnthropicPromptCache(converted.messages, converted.moveCommandIndices, moveNumber);
 
       const result = await generateText({
         model: this.openrouter(this.model),

@@ -18,9 +18,11 @@ interface ArenaProps {
   gameOver?: boolean;
   autoPlay?: boolean;
   onAutoPlayChange?: (value: boolean) => void;
+  fen?: string;
+  sanMoves?: string[];
 }
 
-export const Arena = forwardRef<GameChatHandle, ArenaProps>(function Arena({ gameState, lastMove, onMove, onModeratorMessage, onReset, onMoveWhite, onMoveBlack, thinkingColor, activeColor, gameOver, autoPlay, onAutoPlayChange }, ref) {
+export const Arena = forwardRef<GameChatHandle, ArenaProps>(function Arena({ gameState, lastMove, onMove, onModeratorMessage, onReset, onMoveWhite, onMoveBlack, thinkingColor, activeColor, gameOver, autoPlay, onAutoPlayChange, fen, sanMoves }, ref) {
   return (
     <main className="arena">
       <div className="arena__content">
@@ -37,6 +39,8 @@ export const Arena = forwardRef<GameChatHandle, ArenaProps>(function Arena({ gam
         gameOver={gameOver}
         autoPlay={autoPlay}
         onAutoPlayChange={onAutoPlayChange}
+        fen={fen}
+        sanMoves={sanMoves}
       />
     </main>
   );

@@ -28,11 +28,13 @@ interface GameChatProps {
   gameOver?: boolean;
   autoPlay?: boolean;
   onAutoPlayChange?: (value: boolean) => void;
+  fen?: string;
+  sanMoves?: string[];
 }
 
 const LONG_PRESS_MS = 600;
 
-export const GameChat = forwardRef<GameChatHandle, GameChatProps>(function GameChat({ onModeratorMessage, onReset, onMoveWhite, onMoveBlack, thinkingColor, activeColor, gameOver, autoPlay, onAutoPlayChange }, ref) {
+export const GameChat = forwardRef<GameChatHandle, GameChatProps>(function GameChat({ onModeratorMessage, onReset, onMoveWhite, onMoveBlack, thinkingColor, activeColor, gameOver, autoPlay, onAutoPlayChange, fen, sanMoves }, ref) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const nextId = useRef(0);
@@ -158,6 +160,31 @@ export const GameChat = forwardRef<GameChatHandle, GameChatProps>(function GameC
               />
               Auto
             </label>
+          )}
+          {fen && (
+            <button
+              type="button"
+              className="game-chat__ctrl-btn"
+              onClick={() => {
+                setMessages((prev) => [...prev, { id: ++nextId.current, role: 'moderator', text: `FEN: ${fen}` }]);
+                onModeratorMessage?.(`FEN: ${fen}`);
+              }}
+            >
+              FEN
+            </button>
+          )}
+          {sanMoves && sanMoves.length > 0 && (
+            <button
+              type="button"
+              className="game-chat__ctrl-btn"
+              onClick={() => {
+                const text = `Move history: ${sanMoves.map((m, i) => (i % 2 === 0 ? `${Math.floor(i / 2) + 1}. ${m}` : m)).join(' ')}`;
+                setMessages((prev) => [...prev, { id: ++nextId.current, role: 'moderator', text }]);
+                onModeratorMessage?.(text);
+              }}
+            >
+              SAN
+            </button>
           )}
         </div>
       )}

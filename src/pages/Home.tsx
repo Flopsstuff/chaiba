@@ -50,6 +50,33 @@ export function Home() {
       const moveNum = Math.ceil(san.length / 2);
       const side = san.length % 2 === 1 ? 'White' : 'Black';
       chatRef.current?.addSystemMessage(`${moveNum}. ${side}: ${lastSan}`);
+
+      // Record manual move in shared messages as if the agent made it.
+      // This reuses the existing tool-call/tool-result mechanism so that
+      // convertMessages treats it correctly for both agents:
+      // - moving agent sees it as own tool call + result
+      // - opponent sees "Opponent played X"
+      const movingColor = side === 'White' ? 'white' : 'black';
+      const movingAgent = movingColor === 'white' ? whiteRef.current : blackRef.current;
+      const callId = `manual-${Date.now()}`;
+      const agentMsg: Message = {
+        sender: 'agent',
+        agentId: movingAgent?.id ?? `manual-${movingColor}`,
+        agentName: movingAgent?.name ?? movingColor,
+        content: '',
+        toolCalls: [{ id: callId, tool: 'make-move', args: { move: lastSan } }],
+      };
+      const toolResultMsg: Message = {
+        sender: 'system',
+        agentId: movingAgent?.id ?? `manual-${movingColor}`,
+        content: `Move ${lastSan} accepted.`,
+        toolResultFor: { callId, toolName: 'make-move' },
+      };
+      setSharedMessages((prev) => {
+        const next = [...prev, agentMsg, toolResultMsg];
+        sharedMessagesRef.current = next;
+        return next;
+      });
     } else {
       chatRef.current?.addSystemMessage(result.error);
     }
@@ -77,24 +104,23 @@ export function Home() {
     const sendContext = localStorage.getItem('send_context_message') !== 'false';
     let messagesForAgent = [...sharedMessagesRef.current];
 
+    let contextParts = '';
     if (sendContext) {
       const fen = engine.getFEN();
       const san = engine.getSAN();
-      const moveHistory = san.length > 0 ? `Moves so far: ${san.join(' ')}` : 'No moves yet.';
-      const contextMsg: Message = {
-        sender: 'system',
-        agentId: agent.id,
-        content: `Current position (FEN): ${fen}\n${moveHistory}\nIt is ${color}'s turn. ${MoveCommand}.`,
-      };
-      messagesForAgent = [...messagesForAgent, contextMsg];
-    } else {
-      const contextMsg: Message = {
-        sender: 'system',
-        agentId: agent.id,
-        content: `It is ${color}'s turn. ${MoveCommand}.`,
-      };
-      messagesForAgent = [...messagesForAgent, contextMsg];
+      const moveHistory = san.length > 0
+        ? `Moves so far: ${san.map((m, i) => (i % 2 === 0 ? `${Math.floor(i / 2) + 1}. ${m}` : m)).join(' ')}`
+        : 'No moves yet.';
+      contextParts = `Current position (FEN): ${fen}\n${moveHistory}\n`;
     }
+    const contextMsg: Message = {
+      sender: 'system',
+      agentId: agent.id,
+      content: `${contextParts}It is ${color}'s turn (move ${state.fullmoveNumber}). ${MoveCommand}.`,
+      moveNumber: state.fullmoveNumber,
+      moveColor: color,
+    };
+    messagesForAgent = [...messagesForAgent, contextMsg];
 
     const opponentRef = color === 'white' ? blackRef : whiteRef;
     const opponent = opponentRef.current
@@ -103,7 +129,7 @@ export function Home() {
 
     try {
       let moveSucceeded = false;
-      const result = await agent.generate(messagesForAgent, opponent);
+      const result = await agent.generate(messagesForAgent, opponent, state.fullmoveNumber);
       if (result.cost) setTotalCost((prev) => prev + result.cost);
 
       // Record agent response in shared history
@@ -271,7 +297,21 @@ export function Home() {
           >
             {showWhite ? '◀ White' : '▶ White'}
           </button>
-          <div className="toolbar__notation" ref={notationRef}>
+          <div
+            className="toolbar__notation"
+            ref={notationRef}
+            title={sanMoves.length > 0 ? 'Click to copy moves' : undefined}
+            onClick={() => {
+              if (sanMoves.length === 0) return;
+              const text = sanMoves.map((m, i) => (i % 2 === 0 ? `${Math.floor(i / 2) + 1}. ${m}` : m)).join(' ');
+              navigator.clipboard.writeText(text);
+              const el = notationRef.current;
+              if (el) {
+                el.classList.add('toolbar__notation--copied');
+                setTimeout(() => el.classList.remove('toolbar__notation--copied'), 1000);
+              }
+            }}
+          >
             {sanMoves.length === 0 && (
               <span className="toolbar__notation-empty">No moves yet</span>
             )}
@@ -307,6 +347,8 @@ export function Home() {
             gameOver={isCheckmate(gameState, gameState.activeColor) || isStalemate(gameState, gameState.activeColor)}
             autoPlay={autoPlay}
             onAutoPlayChange={setAutoPlay}
+            fen={engineRef.current.getFEN()}
+            sanMoves={sanMoves}
           />
           <BlackPanel ref={blackRef} isOpen={showBlack} messages={sharedMessages} fischer960={isFischer} />
         </div>

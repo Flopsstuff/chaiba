@@ -55,10 +55,14 @@ interface Message {
     callId: string;
     toolName: string;
   };
+  moveNumber?: number;               // Engine's fullmoveNumber (context messages only)
+  moveColor?: ChessColor;            // Whose turn it is (context messages only)
 }
 ```
 
 Single message in the shared conversation history. The `agentId` field associates messages with specific agents, enabling per-agent filtering and opponent message handling.
+
+The `moveNumber` and `moveColor` fields are set on context messages (containing `MoveCommand`) and used by the Anthropic prompt caching logic to place cache breakpoints at the correct position without string parsing.
 
 ### PlayerConfig
 
@@ -136,8 +140,9 @@ Full game state matching FEN fields. Used by `ChessEngine`, `ChessBoard`, and `A
 ```typescript
 interface GameChatHandle {
   addSystemMessage: (text: string) => void;
+  addAgentMessage: (name: string, color: 'white' | 'black', text: string) => void;
   clear: () => void;
 }
 ```
 
-Imperative handle exposed by `GameChat` via `forwardRef` + `useImperativeHandle`. Used by `Home` to push system messages (move results, reset notifications) into the chat.
+Imperative handle exposed by `GameChat` via `forwardRef` + `useImperativeHandle`. Used by `Home` to push system messages (move results, reset notifications) and agent messages into the chat.
