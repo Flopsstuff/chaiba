@@ -78,7 +78,7 @@ For Anthropic models (`anthropic/*`), a single `cacheControl: { type: 'ephemeral
 
 1. `generate()` receives `moveNumber` (the engine's `fullmoveNumber`)
 2. `convertMessages()` returns both the converted `ModelMessage[]` and a `moveCommandIndices` map — a `Map<index, moveNumber>` tracking which converted message indices are context messages and their associated move numbers
-3. `withAnthropicPromptCache()` calculates the boundary move: `floor((moveNumber - 1) / 10) * 10 + 1`
+3. `addCacheBreakpoint()` calculates the boundary move: `floor((moveNumber - 1) / 10) * 10 + 1`
 4. It looks up the last entry in `moveCommandIndices` whose move number is at or before the boundary
 5. That message gets annotated with `cacheControl` — everything before it becomes a cached prefix
 
@@ -154,7 +154,7 @@ Custom prompts can be edited on the Settings page and are stored in localStorage
 2. Calls agent.generate(messages, opponent, state.fullmoveNumber)
 3. useChessPlayer sets status → 'thinking'
 4. ChessPlayer.convertMessages() transforms shared Message[] to LLM format + moveCommandIndices map
-5. ChessPlayer.withAnthropicPromptCache() annotates cache breakpoint (Anthropic models only)
+5. ChessPlayer.addCacheBreakpoint() annotates cache breakpoint
 6. generateText() calls OpenRouter API
 7. LLM returns text + make-move tool call
 8. Tool call parsed into ToolCallData, cost extracted from usage metadata

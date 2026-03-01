@@ -155,16 +155,12 @@ export class ChessPlayer {
     return { messages: result, moveCommandIndices };
   }
 
-  private get isAnthropicModel(): boolean {
-    return this.model.startsWith('anthropic/');
-  }
-
-  private withAnthropicPromptCache(
+  private addCacheBreakpoint(
     messages: ModelMessage[],
     moveCommandIndices: Map<number, number>,
     moveNumber: number,
   ): ModelMessage[] {
-    if (!this.isAnthropicModel || moveNumber < 2) return messages;
+    if (moveNumber < 2) return messages;
 
     // Place a single cache breakpoint so the stable prefix gets cached.
     // Breakpoint advances every 10 full moves (at moves 1, 11, 21, ...).
@@ -210,7 +206,7 @@ export class ChessPlayer {
         throw new Error('OpenRouter API key not set. Configure in Settings.');
       }
       const converted = this.convertMessages(messages, opponent);
-      const coreMessages = this.withAnthropicPromptCache(converted.messages, converted.moveCommandIndices, moveNumber);
+      const coreMessages = this.addCacheBreakpoint(converted.messages, converted.moveCommandIndices, moveNumber);
 
       const result = await generateText({
         model: this.openrouter(this.model),
