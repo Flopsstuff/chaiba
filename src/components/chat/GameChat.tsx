@@ -178,7 +178,7 @@ export const GameChat = forwardRef<GameChatHandle, GameChatProps>(function GameC
               type="button"
               className="game-chat__ctrl-btn"
               onClick={() => {
-                const text = `Move history: ${sanMoves.map((m, i) => (i % 2 === 0 ? `${Math.floor(i / 2) + 1}. ${m}` : m)).join(' ')}`;
+                const text = `SAN Move history: ${sanMoves.map((m, i) => (i % 2 === 0 ? `${Math.floor(i / 2) + 1}. ${m}` : m)).join(' ')}`;
                 setMessages((prev) => [...prev, { id: ++nextId.current, role: 'moderator', text }]);
                 onModeratorMessage?.(text);
               }}

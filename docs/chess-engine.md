@@ -175,16 +175,24 @@ Home (engineRef, gameState, sanMoves)
 | `ChessSquare` | Single square, handles drop target and click selection |
 | `ChessPiece` | Draggable piece, renders Unicode chess symbol |
 
-The board uses @dnd-kit for drag-and-drop interactions:
+The board supports two interaction modes:
+
+**Drag-and-drop** (via @dnd-kit):
 - `DndContext` wraps the board
 - Each `ChessPiece` is a draggable element
 - Each `ChessSquare` is a droppable target
-- Legal moves are highlighted when a piece is selected or being dragged
 - On drop, `onMove(from, to)` is called — the parent routes it through `ChessEngine`
+
+**Click-to-select:**
+- Clicking a piece selects it (highlighted with `chess-square--selected`)
+- Clicking a valid destination square executes the move
+- Clicking elsewhere or another piece changes the selection
+
+Both modes highlight legal moves when a piece is active (dragging or selected).
 
 ## Test Coverage
 
-**47 tests** across `engine.test.ts`, `rules.test.ts`, and `types.test.ts` covering:
+**88 tests** across `engine.test.ts`, `rules.test.ts`, and `types.test.ts` covering:
 - Starting position, reset, Chess960 generation
 - FEN round-tripping and validation
 - UCI move execution (legal, illegal, wrong turn, castling, promotion)

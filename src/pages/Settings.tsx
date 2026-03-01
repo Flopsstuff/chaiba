@@ -318,7 +318,7 @@ export function Settings() {
                   localStorage.setItem('send_fen_on_error', String(e.target.checked));
                 }}
               />
-              Send FEN when agent makes invalid move
+              Send FEN from Moderator when agent makes invalid move
             </label>
             <div className="settings-retry">
               <label className="settings-checkbox">

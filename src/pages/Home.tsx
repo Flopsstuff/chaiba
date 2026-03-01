@@ -224,14 +224,19 @@ export function Home() {
         }
       }
 
-      // Only persist base + final attempt to shared messages
-      // so failed retry moves don't leak into the opponent's context
-      const finalMessages = [
-        ...messagesForAgent.slice(0, baseLength),
-        ...messagesForAgent.slice(attemptStartIdx),
-      ];
-      sharedMessagesRef.current = finalMessages;
-      setSharedMessages(finalMessages);
+      // Only persist to shared messages when the move succeeded.
+      // On success: keep base + final (successful) attempt, dropping
+      // intermediate failed attempts so they don't leak to the opponent.
+      // On failure: leave sharedMessages unchanged — the next turn will
+      // start fresh with its own context message.
+      if (moveSucceeded) {
+        const finalMessages = [
+          ...messagesForAgent.slice(0, baseLength),
+          ...messagesForAgent.slice(attemptStartIdx),
+        ];
+        sharedMessagesRef.current = finalMessages;
+        setSharedMessages(finalMessages);
+      }
       return moveSucceeded;
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : String(err);

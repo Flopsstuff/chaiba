@@ -160,9 +160,19 @@ Custom prompts can be edited on the Settings page and are stored in localStorage
 8. Tool call parsed into ToolCallData, cost extracted from usage metadata
 9. Log entry appended to messageLog (request + response + usage)
 10. useChessPlayer syncs status/messageLog to React state
-11. Home validates move via ChessEngine, adds agent response + tool result to sharedMessages
+11. Home validates move via ChessEngine:
+    - If valid: adds agent response + tool result to sharedMessages
+    - If invalid and retries enabled: appends error feedback (optionally with FEN) and loops back to step 2
 12. Panel renders MessageBubble with move + reasoning
 ```
+
+### Retry on Invalid Move
+
+When `retry_attempts` > 0 in Settings, `handleAgentMove` will retry the LLM call if the returned move is invalid or the agent responds without making a move:
+
+- Up to N retry attempts (configurable 1-10 in Settings)
+- Each retry appends the error message and optionally the current FEN (`send_fen_on_error`) to the conversation so the LLM can self-correct
+- If all retries are exhausted, the move fails and auto-play stops
 
 ## Configuration
 
@@ -174,6 +184,8 @@ All configuration is stored in `localStorage`:
 | `selected_models` | `JSON array` | — | Selected models from OpenRouter catalog |
 | `chess_prompts` | `JSON object` | — | Custom system prompts per color |
 | `send_context_message` | `string` | `'true'` | Whether to include FEN + move history in context messages |
+| `retry_attempts` | `string` | `'0'` | Number of retry attempts when agent makes an invalid move |
+| `send_fen_on_error` | `string` | `'false'` | Whether to include current FEN in error feedback on invalid moves |
 
 Model selection falls back to `openai/gpt-4o` if no models are configured.
 

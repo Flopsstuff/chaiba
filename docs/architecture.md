@@ -52,7 +52,8 @@ src/
 │   └── useChessPlayer.ts   # React hook wrapping ChessPlayer
 ├── lib/
 │   ├── openrouter.ts        # OpenRouter provider factory
-│   └── models.ts            # Model selection from localStorage
+│   ├── models.ts            # Model selection from localStorage
+│   └── onlineStats.ts       # Streaming statistical metrics (P² algorithm)
 ├── pages/
 │   ├── Home.tsx/.css         # Main game page (3-column layout)
 │   └── Settings.tsx/.css     # API key + model configuration
@@ -106,6 +107,8 @@ No global state library. State is managed through:
    - `selected_models` — JSON array of selected model objects
    - `chess_prompts` — custom system prompts
    - `send_context_message` — whether to include FEN/move history before each move
+   - `retry_attempts` — number of retry attempts on invalid move (0 = disabled)
+   - `send_fen_on_error` — whether to include FEN in error context when retrying
 
 3. **`ChessEngine` instance** — owned by `Home` via `useRef`:
    - Single source of truth for game state and move history
