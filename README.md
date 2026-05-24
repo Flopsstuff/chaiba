@@ -35,6 +35,22 @@ yarn lint           # run ESLint (flat config) over the repo
 > The dev and preview servers are served under the `/chaiba/` base path (matching
 > the GitHub Pages deployment), so open `http://localhost:5173/chaiba/`.
 
+## Continuous integration
+
+Every push to `main` and every pull request runs the CI quality gate
+(`.github/workflows/ci.yml`) on Node 22 (LTS) with Yarn 4 via Corepack. The gate
+runs three checks and fails the build if any of them fail:
+
+```bash
+yarn install --immutable   # lockfile must be in sync (yarn.lock only)
+yarn lint                  # ESLint — fails on errors (warnings are non-blocking)
+yarn typecheck             # tsc --noEmit
+yarn test                  # Vitest unit suite
+```
+
+A PR cannot be merged green unless lint (no errors), typecheck, and the test
+suite all pass. Run the same checks locally before pushing to avoid a red CI.
+
 ## Deployment
 
 Pushes to `main` are built with Vite and published to GitHub Pages via
