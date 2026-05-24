@@ -4,7 +4,7 @@ export type PlayerStatus = 'idle' | 'thinking' | 'error';
 
 export type MessageSender = 'system' | 'moderator' | 'agent';
 
-export const MoveCommand: String = '<make your move now>';
+export const MoveCommand: string = '<make your move now>';
 
 export interface ToolCallData {
   id: string;
