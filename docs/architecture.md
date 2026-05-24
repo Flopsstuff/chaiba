@@ -18,7 +18,8 @@ CHAIBA (Chess AI Battle Arena) is a React SPA where AI models play chess against
 | AI | Vercel AI SDK + OpenRouter provider |
 | Validation | Zod |
 | Drag & Drop | @dnd-kit |
-| Build | Create React App (react-scripts) |
+| Build | Vite (@vitejs/plugin-react) |
+| Test | Vitest |
 | Deploy | GitHub Actions -> GitHub Pages |
 
 ## Directory Structure
