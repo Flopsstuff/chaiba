@@ -553,8 +553,6 @@ export class ChessEngine {
     let pieceType: PieceType = 'pawn';
     let disambigFile: number | null = null;
     let disambigRank: number | null = null;
-    let toFile: number;
-    let toRank: number;
     let promotion: PieceType | null = null;
 
     // Piece prefix
@@ -585,8 +583,8 @@ export class ChessEngine {
     if (!/^[a-h][1-8]$/.test(targetStr)) {
       return { success: false, error: `Invalid SAN target square: '${san}'` };
     }
-    toFile = targetStr.charCodeAt(0) - 97;
-    toRank = parseInt(targetStr[1], 10) - 1;
+    const toFile = targetStr.charCodeAt(0) - 97;
+    const toRank = parseInt(targetStr[1], 10) - 1;
     const toIndex = toRank * 8 + toFile;
 
     // Remaining prefix is disambiguation

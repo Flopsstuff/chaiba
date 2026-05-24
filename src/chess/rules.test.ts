@@ -1,4 +1,4 @@
-import { getLegalMoves, isInCheck, isCheckmate, isStalemate, isSquareAttacked } from './rules';
+import { getLegalMoves, isInCheck, isCheckmate, isStalemate } from './rules';
 import type { GameState, Board, Piece, PieceColor } from './types';
 import { getStartingGameState } from './types';
 
@@ -363,8 +363,6 @@ describe('isStalemate', () => {
     place(board, sq('a1'), 'king', 'white');
     place(board, sq('c2'), 'queen', 'black');
     place(board, sq('h8'), 'king', 'black');
-    const state = makeState(board, 'white');
-
     // King on a1 can go to b1 (c2 queen attacks b1? c2 to b1 is diagonal — yes attacked)
     // a1 king: a2 (attacked by queen c2 diag? c2-b1 diag, c2-b3... a2 is on rank 2 file a. queen on c2 attacks along rank 2, so a2 is attacked.)
     // b1: queen c2 attacks diagonally b1. Attacked.
