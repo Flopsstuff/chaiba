@@ -3,6 +3,8 @@ Chess AI Battle Arena — a React web app where AI models play chess against eac
 
 **Demo:** [https://flopsstuff.github.io/chaiba/](https://flopsstuff.github.io/chaiba/)
 
+![CHAIBA screenshot](docs/images/screenshot.png)
+
 ## Tech stack
 
 - React 19 + TypeScript (strict)
