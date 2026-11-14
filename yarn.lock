@@ -1731,6 +1731,7 @@ __metadata:
     eslint: "npm:^10.15.0"
     eslint-plugin-react-hooks: "npm:^7.1.1"
     eslint-plugin-react-refresh: "npm:^0.5.7"
+    fake-indexeddb: "npm:^6.2.8"
     globals: "npm:^17.14.0"
     react: "npm:^19.3.1"
     react-dom: "npm:^19.3.1"
@@ -2106,6 +2107,13 @@ __metadata:
   version: 3.1.3
   resolution: "exponential-backoff@npm:3.1.3"
   checksum: 10c0/77e3ae682b7b1f4972f563c6dbcd2b0d54ac679e62d5d32f3e5085feba20483cf28bd505543f520e287a56d4d55a28d7874299941faf637e779a1aa5994d1267
+  languageName: node
+  linkType: hard
+
+"fake-indexeddb@npm:^6.2.8":
+  version: 6.2.8
+  resolution: "fake-indexeddb@npm:6.2.8"
+  checksum: 10c0/69a85018a3a714e81ae88d9294ab54ed73f83a23dd28b926d41dabf892a939dd029207e8f2dca1238ed5ebde75f1971a7a8ab14f773d5fad396923e117b6e8fe
   languageName: node
   linkType: hard
 

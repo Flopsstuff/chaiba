@@ -1,0 +1,129 @@
+.game-screen {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.game-screen__loading {
+  color: #78909c;
+}
+
+.game-card {
+  max-width: 440px;
+  padding: 20px 24px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.18);
+  text-align: left;
+}
+
+.game-card h2 {
+  margin: 0 0 8px;
+  font-size: 18px;
+}
+
+.game-card p {
+  margin: 0 0 16px;
+  color: #546e7a;
+  font-size: 14px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.game-card__buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.game-card__button {
+  padding: 7px 14px;
+  border: 1px solid #b0bec5;
+  border-radius: 4px;
+  background: white;
+  color: #37474f;
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.game-card__button:hover {
+  background: #eceff1;
+}
+
+.game-card__button--primary {
+  background: #61dafb;
+  border-color: #61dafb;
+  color: #282c34;
+}
+
+.game-card__button--primary:hover {
+  background: #4fa8c7;
+  border-color: #4fa8c7;
+}
+
+/* Covers the board of a game that another tab has taken over. */
+.game-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(40, 44, 52, 0.6);
+}
+
+/* Floats over the board, so offering to continue does not shift the layout. */
+.game-notice {
+  position: fixed;
+  top: 80px;
+  left: 50%;
+  z-index: 50;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: calc(100vw - 24px);
+  padding: 8px 10px 8px 14px;
+  background: #282c34;
+  color: white;
+  border-radius: 6px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  font-size: 14px;
+}
+
+.game-notice__text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.game-notice__button {
+  flex-shrink: 0;
+  padding: 4px 10px;
+  border: 1px solid #546e7a;
+  border-radius: 4px;
+  background: transparent;
+  color: white;
+  font: inherit;
+  cursor: pointer;
+}
+
+.game-notice__button:hover {
+  background: #37474f;
+}
+
+.game-notice__button--primary {
+  background: #61dafb;
+  border-color: #61dafb;
+  color: #282c34;
+  font-weight: 500;
+}
+
+.game-notice__button--primary:hover {
+  background: #4fa8c7;
+}

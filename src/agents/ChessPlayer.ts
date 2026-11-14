@@ -1,7 +1,7 @@
 import { generateText, tool, type ModelMessage } from 'ai';
 import { createOpenRouter } from '@openrouter/ai-sdk-provider';
 import { z } from 'zod';
-import { PlayerConfig, PlayerStatus, Message, ToolCallData, ChessColor, MoveCommand } from '../types';
+import { PlayerConfig, PlayerStatus, Message, ToolCallData, ChessColor, MoveCommand, GenerateResult, LogRestoreEntry, Opponent } from '../types';
 
 const API_KEY_STORAGE = 'openrouter_api_key';
 
@@ -19,7 +19,7 @@ export class ChessPlayer {
   private openrouter: ReturnType<typeof createOpenRouter>;
 
   constructor(config: PlayerConfig) {
-    this.id = crypto.randomUUID();
+    this.id = config.id ?? crypto.randomUUID();
     this.name = config.name;
     this.color = config.color;
     this.model = config.model;
@@ -43,6 +43,24 @@ export class ChessPlayer {
 
   clearLog(): void {
     this._messageLog = [];
+  }
+
+  /** The exact messages sent to the model for a call: system prompt first. */
+  private buildRequest(messages: Message[], opponent: Opponent | undefined, moveNumber: number): ModelMessage[] {
+    const converted = this.convertMessages(messages, opponent);
+    return this.addCacheBreakpoint(converted.messages, converted.moveCommandIndices, moveNumber);
+  }
+
+  /** Rebuild the message log of a restored game from its recorded calls. */
+  restoreLog(entries: LogRestoreEntry[]): void {
+    this._messageLog = entries.map((e) => ({
+      timestamp: e.timestamp,
+      messages: [
+        { role: 'system', content: this.systemPrompt },
+        ...this.buildRequest(e.messages, e.opponent, e.moveNumber),
+        e.response,
+      ],
+    }));
   }
 
   private get tools() {
@@ -197,7 +215,7 @@ export class ChessPlayer {
     });
   }
 
-  async generate(messages: Message[], opponent?: { name: string; color: ChessColor }, moveNumber: number = 1): Promise<{ text: string; toolCalls: ToolCallData[]; cost: number }> {
+  async generate(messages: Message[], opponent?: Opponent, moveNumber: number = 1): Promise<GenerateResult> {
     this._status = 'thinking';
     this._error = null;
 
@@ -205,8 +223,7 @@ export class ChessPlayer {
       if (!localStorage.getItem(API_KEY_STORAGE)) {
         throw new Error('OpenRouter API key not set. Configure in Settings.');
       }
-      const converted = this.convertMessages(messages, opponent);
-      const coreMessages = this.addCacheBreakpoint(converted.messages, converted.moveCommandIndices, moveNumber);
+      const coreMessages = this.buildRequest(messages, opponent, moveNumber);
 
       const result = await generateText({
         model: this.openrouter(this.model),
@@ -247,7 +264,19 @@ export class ChessPlayer {
 
       this._status = 'idle';
       const cost = typeof result.usage?.raw?.cost === 'number' ? result.usage.raw.cost : 0;
-      return { text: responseText, toolCalls, cost };
+      return {
+        text: responseText,
+        toolCalls,
+        cost,
+        meta: {
+          reasoning: result.reasoningText || undefined,
+          finishReason: result.finishReason,
+          usage: result.usage as unknown as Record<string, unknown> | undefined,
+          providerMetadata: result.providerMetadata as Record<string, unknown> | undefined,
+          responseId: result.response?.id,
+          responseModel: result.response?.modelId,
+        },
+      };
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
       this._status = 'error';

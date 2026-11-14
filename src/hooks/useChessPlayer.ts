@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef } from 'react';
 import { ChessPlayer } from '../agents/ChessPlayer';
-import { ChessColor, PlayerConfig, PlayerStatus, Message, ToolCallData } from '../types';
+import { PlayerConfig, PlayerStatus, Message, GenerateResult, LogRestoreEntry, Opponent } from '../types';
 
 export interface LogEntry {
   timestamp: number;
@@ -13,8 +13,9 @@ export interface UseChessPlayerReturn {
   status: PlayerStatus;
   error: string | null;
   messageLog: LogEntry[];
-  generate: (messages: Message[], opponent?: { name: string; color: ChessColor }, moveNumber?: number) => Promise<{ text: string; toolCalls: ToolCallData[]; cost: number }>;
+  generate: (messages: Message[], opponent?: Opponent, moveNumber?: number) => Promise<GenerateResult>;
   clearLog: () => void;
+  restoreLog: (entries: LogRestoreEntry[]) => void;
 }
 
 export function useChessPlayer(config: PlayerConfig): UseChessPlayerReturn {
@@ -40,7 +41,7 @@ export function useChessPlayer(config: PlayerConfig): UseChessPlayerReturn {
   const id = player.id;
   const name = player.name;
 
-  const generate = useCallback(async (messages: Message[], opponent?: { name: string; color: ChessColor }, moveNumber?: number) => {
+  const generate = useCallback(async (messages: Message[], opponent?: Opponent, moveNumber?: number) => {
     const player = getPlayer();
     setStatus('thinking');
     setError(null);
@@ -66,5 +67,12 @@ export function useChessPlayer(config: PlayerConfig): UseChessPlayerReturn {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  return { id, name, status, error, messageLog, generate, clearLog };
+  const restoreLog = useCallback((entries: LogRestoreEntry[]) => {
+    const player = getPlayer();
+    player.restoreLog(entries);
+    setMessageLog([...player.messageLog]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return { id, name, status, error, messageLog, generate, clearLog, restoreLog };
 }

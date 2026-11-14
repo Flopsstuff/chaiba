@@ -28,7 +28,37 @@ export interface Message {
   moveColor?: ChessColor;
 }
 
+/** What one LLM call returned, beyond the text and tool calls. */
+export interface GenerateMeta {
+  reasoning?: string;
+  finishReason?: string;
+  usage?: Record<string, unknown>;
+  providerMetadata?: Record<string, unknown>;
+  responseId?: string;
+  responseModel?: string;
+}
+
+export interface GenerateResult {
+  text: string;
+  toolCalls: ToolCallData[];
+  cost: number;
+  meta: GenerateMeta;
+}
+
+export type Opponent = { name: string; color: ChessColor };
+
+/** A past LLM call, as needed to rebuild an agent's message log. */
+export interface LogRestoreEntry {
+  timestamp: number;
+  messages: Message[];
+  opponent?: Opponent;
+  moveNumber: number;
+  response: Record<string, unknown>;
+}
+
 export interface PlayerConfig {
+  /** Agent id; generated when omitted. Set when restoring a saved game. */
+  id?: string;
   name: string;
   color: ChessColor;
   model: string;

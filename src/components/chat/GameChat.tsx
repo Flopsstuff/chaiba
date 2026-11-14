@@ -15,6 +15,8 @@ interface Message {
 export interface GameChatHandle {
   addSystemMessage: (text: string) => void;
   addAgentMessage: (name: string, color: 'white' | 'black', text: string) => void;
+  /** Replace the chat with a saved log. */
+  restore: (entries: { role: MessageRole; text: string; sender?: string }[]) => void;
   clear: () => void;
 }
 
@@ -74,6 +76,9 @@ export const GameChat = forwardRef<GameChatHandle, GameChatProps>(function GameC
     },
     addAgentMessage(name: string, color: 'white' | 'black', text: string) {
       setMessages((prev) => [...prev, { id: ++nextId.current, role: color, text, sender: name }]);
+    },
+    restore(entries) {
+      setMessages(entries.map((e) => ({ id: ++nextId.current, ...e })));
     },
     clear() {
       setMessages([]);

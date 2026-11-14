@@ -1,15 +1,19 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { GitHubLogo } from './GitHubLogo';
+import { GamesMenu } from './GamesMenu';
+import { getReturnPath } from '../lib/navigation';
 import { isSoundEnabled, playSound, setSoundEnabled } from '../lib/sounds';
 import './Header.css';
 
 interface HeaderProps {
   showBack?: boolean;
   totalCost?: number;
+  /** The stored game this page is showing; highlighted in the games menu. */
+  gameId?: string;
 }
 
-export function Header({ showBack, totalCost }: HeaderProps) {
+export function Header({ showBack, totalCost, gameId }: HeaderProps) {
   const [soundOn, setSoundOn] = useState(isSoundEnabled);
 
   const toggleSound = () => {
@@ -30,6 +34,7 @@ export function Header({ showBack, totalCost }: HeaderProps) {
         <span className="header-cost">${totalCost!.toFixed(4)}</span>
       )}
       <div className="header-actions">
+        <GamesMenu currentId={gameId} />
         <button
           type="button"
           className={`header-sound ${soundOn ? 'header-sound--on' : ''}`}
@@ -37,10 +42,11 @@ export function Header({ showBack, totalCost }: HeaderProps) {
           aria-pressed={soundOn}
           title={soundOn ? 'Sound on — click to mute' : 'Sound off — click to unmute'}
         >
-          {soundOn ? '🔊 Sound' : '🔇 Muted'}
+          {soundOn ? '🔊' : '🔇'}
+          <span className="header-sound__label">{soundOn ? ' Sound' : ' Muted'}</span>
         </button>
         {showBack ? (
-          <Link to="/" className="header-back">← Back</Link>
+          <Link to={getReturnPath()} className="header-back">← Back</Link>
         ) : (
           <Link to="/settings" className="header-settings">Settings</Link>
         )}

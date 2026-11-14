@@ -231,3 +231,130 @@
   outline: none;
   border-color: #61dafb;
 }
+
+.settings-games {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.settings-game {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  padding: 10px 12px;
+}
+
+.settings-game + .settings-game {
+  border-top: 1px solid #eee;
+}
+
+.settings-game__info {
+  flex: 1 1 240px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.settings-game__title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+}
+
+.settings-game__players {
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.settings-game__status {
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.settings-game__status--in-progress {
+  color: #01579b;
+  background: #e1f5fe;
+}
+
+.settings-game__status--finished {
+  font-family: monospace;
+  color: #37474f;
+  background: #eceff1;
+}
+
+.settings-game__tag {
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+  color: #4527a0;
+  background: #ede7f6;
+}
+
+.settings-game__tag--held {
+  color: #e65100;
+  background: #fff3e0;
+}
+
+.settings-game__models {
+  font-size: 12px;
+  font-family: monospace;
+  color: #546e7a;
+  overflow-wrap: anywhere;
+}
+
+.settings-game__details {
+  font-size: 12px;
+  color: #888;
+}
+
+.settings-game__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.settings-game__action {
+  padding: 6px 12px;
+  font-size: 14px;
+  text-decoration: none;
+}
+
+.settings-game__action--danger:not(:disabled) {
+  color: #c62828;
+}
+
+.settings-games__empty {
+  margin: 0;
+  font-size: 14px;
+  color: #546e7a;
+}
+
+.settings-games__buttons {
+  flex-wrap: wrap;
+  margin-bottom: 0;
+}
+
+.settings-session-notice {
+  margin: 12px 0 0;
+  font-size: 14px;
+}
+
+.settings-session-notice--ok {
+  color: #2e7d32;
+}
+
+.settings-session-notice--error {
+  color: #c62828;
+}

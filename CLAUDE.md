@@ -28,9 +28,16 @@ Project uses **yarn 4** (via `packageManager` in package.json, activated with `c
 
 ## Architecture
 
-**Routing:** Hash-based (`HashRouter`) with two routes: `/` (Home) and `/settings` (Settings).
+**Routing:** Hash-based (`HashRouter`). `/` is a new game being set up, `/game/:id` a stored game, `/settings` the settings. `/` and `/game/:id` are one route (`src/pages/Game.tsx`) so the board is not remounted when a new game gets its id.
 
-**State & persistence:** Local component state with `useState`/`useEffect`. API key and selected models stored in `localStorage` (`openrouter_api_key`, `selected_models`).
+**State & persistence:** Local component state with `useState`/`useEffect`. API key, selected models, prompts and game options are stored in `localStorage` (`openrouter_api_key`, `selected_models`, …). Games are stored in IndexedDB.
+
+**Game session:** `src/lib/session.ts` defines the complete record of one game as a single JSON document (zod schema): setup, players, status/result, moves, every LLM call with usage/cost/timing, the agents' shared conversation and the arena chat. A call's request is not stored in full — it is the first `historyCount` entries of `messages` plus the call's `input`.
+
+- **Lifecycle:** a new game exists only in memory while it is set up. On the first move or message it is stored, and its id goes into the address (`/game/:id`). It is `finished` on checkmate or stalemate. Reset shows a new game; the old one stays stored.
+- **Storage:** `src/lib/sessionStore.ts` — IndexedDB database `chaiba` with the full documents (`sessions`) and a light index for lists (`meta`), written together. `Home` saves after every change through a serialized latest-wins writer.
+- **Tabs:** `src/lib/sessionLock.ts` — the tab showing a game holds a Web Lock on it, so different tabs can play different games. Opening a game that another tab holds offers to take it over; the previous tab then freezes.
+- **UI:** `Game.tsx` picks what the tab shows (new game, stored game, busy/missing/error screens, the "continue" offer); `Home.tsx` is one game and lives exactly as long as it. The header's Games menu and the Games section of Settings list stored games; Settings also exports, imports and deletes them.
 
 **AI integration:** `src/lib/openrouter.ts` creates an OpenRouter provider instance reading the API key from localStorage. Used with Vercel AI SDK's `ai` package.
 

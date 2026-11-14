@@ -1,4 +1,6 @@
 .header {
+  /* Anchor for the games menu panel on narrow screens. */
+  position: relative;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -35,6 +37,7 @@
 }
 
 .header-sound {
+  white-space: nowrap;
   padding: 5px 10px;
   background-color: transparent;
   color: #90a4ae;
@@ -79,4 +82,20 @@
 
 .header-back:hover {
   background-color: #546e7a;
+}
+
+/* Four controls and the logo do not fit a phone-width header at full spacing. */
+@media (max-width: 480px) {
+  .header {
+    padding: 0 8px;
+  }
+
+  .header-actions {
+    gap: 6px;
+  }
+
+  /* Icon only: the label does not fit next to Games and Settings. */
+  .header-sound__label {
+    display: none;
+  }
 }

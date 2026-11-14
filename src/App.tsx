@@ -1,5 +1,5 @@
 import { HashRouter, Routes, Route } from 'react-router-dom';
-import { Home } from './pages/Home';
+import { Game } from './pages/Game';
 import { Settings } from './pages/Settings';
 import './App.css';
 
@@ -8,8 +8,10 @@ function App() {
     <HashRouter>
       <div className="App">
         <Routes>
-          <Route path="/" element={<Home />} />
           <Route path="/settings" element={<Settings />} />
+          {/* One route for `/` and `/game/:id`, so the board is not remounted
+              when a new game gets its id and the address changes under it. */}
+          <Route path="/*" element={<Game />} />
         </Routes>
       </div>
     </HashRouter>

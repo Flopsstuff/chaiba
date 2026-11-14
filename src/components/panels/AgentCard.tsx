@@ -4,7 +4,8 @@ import { ChessPrompts } from '../../agents/ChessPrompts';
 import { getSelectedModel } from '../../lib/models';
 import { MessageBubble } from './MessageBubble';
 import { ColorSpinner } from '../ColorSpinner';
-import { ChessColor, Message, PlayerStatus, ToolCallData } from '../../types';
+import { ChessColor, Message, PlayerStatus, GenerateResult, LogRestoreEntry, Opponent } from '../../types';
+import type { SessionPlayer } from '../../lib/session';
 import './AgentCard.css';
 
 const AGENT_NAMES = [
@@ -29,9 +30,11 @@ function getAvailableModels(): { id: string; name?: string }[] {
 }
 
 export interface AgentCardHandle {
-  generate: (messages: Message[], opponent?: { name: string; color: ChessColor }, moveNumber?: number) => Promise<{ text: string; toolCalls: ToolCallData[]; cost: number }>;
+  generate: (messages: Message[], opponent?: Opponent, moveNumber?: number) => Promise<GenerateResult>;
   rerollName: () => void;
   clearLog: () => void;
+  restoreLog: (entries: LogRestoreEntry[]) => void;
+  model: string;
   id: string;
   name: string;
   color: ChessColor;
@@ -42,32 +45,66 @@ interface AgentCardProps {
   color: ChessColor;
   messages: Message[];
   fischer960?: boolean;
+  /**
+   * The player of a restored game. Sets the initial name, model and custom
+   * instructions, and pins the agent id and base prompt to the saved ones for
+   * as long as it is passed.
+   */
+  restored?: SessionPlayer | null;
+  /** For a new game: the model and custom instructions to start from. */
+  defaults?: Pick<SessionPlayer, 'model' | 'modelName' | 'customPrompt'>;
+  /** Called whenever the player's setup changes (and once on mount). */
+  onSetupChange?: (color: ChessColor, setup: SessionPlayer) => void;
 }
 
 export const AgentCard = forwardRef<AgentCardHandle, AgentCardProps>(
-  function AgentCard({ color, messages, fischer960 }, ref) {
+  function AgentCard({ color, messages, fischer960, restored, defaults, onSetupChange }, ref) {
     const modelIndex = color === 'white' ? 0 : 1;
 
-    const [agentName, setAgentName] = useState(randomName);
-    const [selectedModel, setSelectedModel] = useState(() => getSelectedModel(modelIndex));
-    const [customPrompt, setCustomPrompt] = useState('');
+    const [agentName, setAgentName] = useState(() => restored?.name ?? randomName());
+    const [selectedModel, setSelectedModel] = useState(() => restored?.model ?? defaults?.model ?? getSelectedModel(modelIndex));
+    const [customPrompt, setCustomPrompt] = useState(() => restored?.customPrompt ?? defaults?.customPrompt ?? '');
+    const [restoredId] = useState(() => restored?.id);
 
-    const basePrompt = useMemo(() => ChessPrompts.getBasePrompt(color), [color]);
-    const availableModels = useMemo(getAvailableModels, []);
+    // A restored game keeps the prompt it was started with, even if the
+    // prompts in Settings have changed since.
+    const currentBasePrompt = useMemo(() => ChessPrompts.getBasePrompt(color), [color]);
+    const basePrompt = restored?.basePrompt ?? currentBasePrompt;
+    const availableModels = useMemo(() => {
+      const models = getAvailableModels();
+      // The model of an imported game may not be among the ones selected here.
+      const known = restored ?? defaults;
+      if (known?.model && !models.some((m) => m.id === known.model)) {
+        models.push({ id: known.model, name: known.modelName });
+      }
+      return models;
+    }, [restored, defaults]);
 
     const systemPrompt = useMemo(() => {
       return customPrompt ? `${basePrompt}\n\n${customPrompt}` : basePrompt;
     }, [basePrompt, customPrompt]);
 
     const config = useMemo(() => ({
+      id: restoredId,
       name: agentName,
       color,
       model: selectedModel,
       systemPrompt,
       fischer960,
-    }), [agentName, color, selectedModel, systemPrompt, fischer960]);
+    }), [restoredId, agentName, color, selectedModel, systemPrompt, fischer960]);
 
-    const { id, name, status, error, messageLog, generate, clearLog } = useChessPlayer(config);
+    const { id, name, status, error, messageLog, generate, clearLog, restoreLog } = useChessPlayer(config);
+
+    useEffect(() => {
+      onSetupChange?.(color, {
+        id,
+        name: agentName,
+        model: selectedModel,
+        modelName: availableModels.find((m) => m.id === selectedModel)?.name,
+        basePrompt,
+        customPrompt,
+      });
+    }, [onSetupChange, color, id, agentName, selectedModel, availableModels, basePrompt, customPrompt]);
     const [showLog, setShowLog] = useState(false);
     const gameStarted = messages.length > 0;
 
@@ -79,11 +116,13 @@ export const AgentCard = forwardRef<AgentCardHandle, AgentCardProps>(
       generate,
       rerollName,
       clearLog,
+      restoreLog,
+      model: selectedModel,
       id,
       name,
       color,
       status,
-    }), [generate, rerollName, id, name, color, status]);
+    }), [generate, rerollName, clearLog, restoreLog, selectedModel, id, name, color, status]);
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
 

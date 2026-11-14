@@ -1,0 +1,153 @@
+.games-menu {
+  position: relative;
+}
+
+.games-menu__button {
+  padding: 5px 10px;
+  background-color: transparent;
+  color: white;
+  border: 1px solid #546e7a;
+  border-radius: 4px;
+  font: inherit;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.games-menu__button:hover,
+.games-menu__button--open {
+  background-color: #37474f;
+}
+
+.games-menu__button--open {
+  border-color: #61dafb;
+}
+
+.games-menu__panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 100;
+  width: 340px;
+  max-height: min(420px, calc(100vh - 60px));
+  overflow-y: auto;
+  box-sizing: border-box;
+  padding: 4px;
+  background-color: #282c34;
+  color: white;
+  border: 1px solid #546e7a;
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  text-align: left;
+}
+
+.games-menu__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 8px;
+  border-radius: 4px;
+  color: white;
+  text-decoration: none;
+  font-size: 14px;
+}
+
+a.games-menu__item:hover,
+a.games-menu__item:focus-visible {
+  background-color: #37474f;
+  outline: none;
+}
+
+.games-menu__item--new {
+  margin-bottom: 4px;
+  color: #61dafb;
+  font-weight: 600;
+}
+
+.games-menu__item--current {
+  background-color: rgba(97, 218, 251, 0.14);
+  box-shadow: inset 3px 0 0 #61dafb;
+  cursor: default;
+}
+
+.games-menu__status {
+  flex: 0 0 34px;
+  padding: 2px 0;
+  border-radius: 3px;
+  font-family: monospace;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.games-menu__status--in-progress {
+  color: #282c34;
+  background-color: #61dafb;
+}
+
+.games-menu__status--finished {
+  color: #cfd8dc;
+  background-color: #455a64;
+}
+
+.games-menu__main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.games-menu__players {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+.games-menu__details {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 6px;
+  font-size: 12px;
+  color: #90a4ae;
+}
+
+.games-menu__tag {
+  padding: 0 5px;
+  border: 1px solid #ffb74d;
+  border-radius: 3px;
+  color: #ffb74d;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.games-menu__tag--current {
+  border-color: #61dafb;
+  color: #61dafb;
+}
+
+.games-menu__note {
+  padding: 8px;
+  font-size: 13px;
+  color: #90a4ae;
+}
+
+.games-menu__note--error {
+  color: #ef9a9a;
+}
+
+/* The button sits too far from the right edge on a narrow screen for a panel
+   hanging off it to fit, so the panel spans the header instead. */
+@media (max-width: 640px) {
+  .games-menu {
+    position: static;
+  }
+
+  .games-menu__panel {
+    top: calc(100% + 4px);
+    left: 8px;
+    right: 8px;
+    width: auto;
+  }
+}

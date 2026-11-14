@@ -10,8 +10,11 @@ import type { GameChatHandle } from '../components/chat/GameChat';
 import type { AgentCardHandle } from '../components/panels/AgentCard';
 import { soundForMove } from '../lib/soundEvents';
 import { playSound } from '../lib/sounds';
+import { describeLastMove, isSessionStarted, logEntriesFor, syncResult } from '../lib/session';
+import type { GameSession, SessionCall, SessionPlayer } from '../lib/session';
+import { createSessionWriter } from '../lib/sessionStore';
 import { MoveCommand } from '../types';
-import type { ChessColor, Message } from '../types';
+import type { ChessColor, GenerateResult, Message } from '../types';
 import './Home.css';
 
 const MOBILE_BREAKPOINT = 768;
@@ -21,25 +24,113 @@ function playMoveSound(state: GameState, san: string) {
   playSound(soundForMove(san, isStalemate(state, state.activeColor)));
 }
 
-export function Home() {
-  const engineRef = useRef<ChessEngine>(new ChessEngine());
+/** What a new game inherits from the one before it: the models and custom instructions. */
+export type PlayerDefaults = Pick<SessionPlayer, 'model' | 'modelName' | 'customPrompt'>;
+
+interface HomeProps {
+  /** The game to show: one loaded from storage, or a blank one being set up. */
+  initial: { session: GameSession; engine: ChessEngine; stored: boolean };
+  /** For a new game: the previous game's models and custom instructions. */
+  defaults?: Record<ChessColor, PlayerDefaults>;
+  /** Another tab has taken this game over: stop playing and stop saving. */
+  frozen?: boolean;
+  /** The game has started: it now has a place in storage and an address. */
+  onStarted: (session: GameSession) => void;
+  /** The user asked for a new game (Reset). */
+  onNewGame: (fischer: boolean, players: GameSession['players']) => void;
+}
+
+/**
+ * One game, from setup to the end. A Home instance lives exactly as long as
+ * its game: the parent mounts a new one for a new or another game.
+ */
+export function Home({ initial, defaults, frozen, onStarted, onNewGame }: HomeProps) {
+  const engineRef = useRef<ChessEngine>(initial.engine);
+  const sessionRef = useRef<GameSession>(initial.session);
+  const playersRef = useRef<GameSession['players']>(initial.session.players);
+  const saveFailedRef = useRef(false);
+  const frozenRef = useRef(false);
+  const unmountedRef = useRef(false);
+  const announcedRef = useRef(false);
+  // A game is stored from its first move or message on, not while it is being set up.
+  const [started, setStarted] = useState(initial.stored);
+  const startedRef = useRef(initial.stored);
+  const [writer] = useState(() => createSessionWriter((error) => {
+    console.warn('[session] save failed:', error);
+    if (saveFailedRef.current) return;
+    saveFailedRef.current = true;
+    chatRef.current?.addSystemMessage('Could not save the game to browser storage — it will not survive a reload. Export it from Settings to keep it.');
+  }));
+  const [gameState, setGameState] = useState<GameState>(() => initial.engine.getState());
+  const [lastMove, setLastMove] = useState<{ from: number; to: number } | null>(() => {
+    const history = initial.engine.getHistory();
+    const last = history[history.length - 1];
+    return last ? { from: last.from, to: last.to } : null;
+  });
+  const [sanMoves, setSanMoves] = useState<string[]>(() => initial.engine.getSAN());
+  const [sharedMessages, setSharedMessages] = useState<Message[]>(initial.session.messages);
+  const sharedMessagesRef = useRef<Message[]>(initial.session.messages);
   const chatRef = useRef<GameChatHandle>(null);
   const whiteRef = useRef<AgentCardHandle>(null);
   const blackRef = useRef<AgentCardHandle>(null);
-  const [gameState, setGameState] = useState<GameState>(() => engineRef.current.getState());
-  const [lastMove, setLastMove] = useState<{ from: number; to: number } | null>(null);
-  const [sanMoves, setSanMoves] = useState<string[]>([]);
-  const [sharedMessages, setSharedMessages] = useState<Message[]>([]);
-  const sharedMessagesRef = useRef<Message[]>([]);
+  // A stored game keeps the players it was started with.
+  const restoredPlayers = initial.stored ? initial.session.players : null;
   const [thinkingColor, setThinkingColor] = useState<ChessColor | null>(null);
   const [whiteOpen, setWhiteOpen] = useState(false);
   const [blackOpen, setBlackOpen] = useState(false);
-  const [isFischer, setIsFischer] = useState(false);
-  const [totalCost, setTotalCost] = useState(0);
+  const isFischer = initial.session.mode === 'chess960';
+  const [totalCost, setTotalCost] = useState(() => initial.session.calls.reduce((sum, c) => sum + c.cost, 0));
   const [autoPlay, setAutoPlay] = useState(false);
   const autoPlayRef = useRef(false);
   const handleAgentMoveRef = useRef<(color: ChessColor) => Promise<boolean>>(null!);
   const notationRef = useRef<HTMLDivElement>(null);
+
+  /** Store the session — from the moment the game starts, and only while this tab owns it. */
+  const save = useCallback(() => {
+    const session = sessionRef.current;
+    if (frozenRef.current || !isSessionStarted(session)) return;
+    session.updatedAt = new Date().toISOString();
+    if (!startedRef.current) {
+      startedRef.current = true;
+      setStarted(true);
+      onStarted(session);
+    }
+    writer.save(session);
+  }, [writer, onStarted]);
+
+  useEffect(() => {
+    frozenRef.current = !!frozen;
+    if (frozen) setAutoPlay(false);
+  }, [frozen]);
+
+  useEffect(() => {
+    unmountedRef.current = false;
+    return () => { unmountedRef.current = true; };
+  }, []);
+
+  /** Post a system line to the arena chat and record it in the session. */
+  const say = useCallback((text: string) => {
+    chatRef.current?.addSystemMessage(text);
+    sessionRef.current.chat.push({ at: new Date().toISOString(), role: 'system', text });
+    save();
+  }, [save]);
+
+  /** Replace the agents' shared conversation, in the UI and in the session. */
+  const commitMessages = useCallback((next: Message[]) => {
+    sharedMessagesRef.current = next;
+    setSharedMessages(next);
+    sessionRef.current.messages = next;
+    save();
+  }, [save]);
+
+  const handleSetupChange = useCallback((color: ChessColor, setup: SessionPlayer) => {
+    playersRef.current = { ...playersRef.current, [color]: setup };
+    const session = sessionRef.current;
+    // Once the game is under way its players are fixed.
+    if (isSessionStarted(session)) return;
+    session.players = playersRef.current;
+    save();
+  }, [save]);
 
   const handleMove = useCallback((from: number, to: number) => {
     const engine = engineRef.current;
@@ -57,7 +148,9 @@ export function Home() {
       playMoveSound(engine.getState(), lastSan);
       const moveNum = Math.ceil(san.length / 2);
       const side = san.length % 2 === 1 ? 'White' : 'Black';
-      chatRef.current?.addSystemMessage(`${moveNum}. ${side}: ${lastSan}`);
+      sessionRef.current.moves.push(describeLastMove(engine, 'manual'));
+      syncResult(sessionRef.current, engine);
+      say(`${moveNum}. ${side}: ${lastSan}`);
 
       // Record manual move in shared messages as if the agent made it.
       // This reuses the existing tool-call/tool-result mechanism so that
@@ -80,32 +173,33 @@ export function Home() {
         content: `Move ${lastSan} accepted.`,
         toolResultFor: { callId, toolName: 'make-move' },
       };
-      setSharedMessages((prev) => {
-        const next = [...prev, agentMsg, toolResultMsg];
-        sharedMessagesRef.current = next;
-        return next;
-      });
+      commitMessages([...sharedMessagesRef.current, agentMsg, toolResultMsg]);
     } else {
       playSound('illegal');
-      chatRef.current?.addSystemMessage(result.error);
+      say(result.error);
     }
-  }, []);
+  }, [say, commitMessages]);
 
   const handleAgentMove = useCallback(async (color: ChessColor): Promise<boolean> => {
     const engine = engineRef.current;
     const state = engine.getState();
 
     if (state.activeColor !== color) {
-      chatRef.current?.addSystemMessage(`It's not ${color}'s turn.`);
+      say(`It's not ${color}'s turn.`);
       return false;
     }
 
     const agentRef = color === 'white' ? whiteRef : blackRef;
     const agent = agentRef.current;
     if (!agent) {
-      chatRef.current?.addSystemMessage(`${color} agent not ready.`);
+      say(`${color} agent not ready.`);
       return false;
     }
+
+    // If the game is left or another tab takes it over while the model is
+    // thinking, its answer must not be played: this board is no longer the game.
+    const session = sessionRef.current;
+    const isStale = () => frozenRef.current || unmountedRef.current;
 
     setThinkingColor(color);
 
@@ -116,6 +210,8 @@ export function Home() {
 
     // Build context message with current FEN and move history (if enabled)
     const sendContext = localStorage.getItem('send_context_message') !== 'false';
+    const settings = { sendContext, sendFenOnError, retryAttempts };
+    const sharedLength = sharedMessagesRef.current.length;
     let messagesForAgent = [...sharedMessagesRef.current];
 
     let contextParts = '';
@@ -144,6 +240,7 @@ export function Home() {
     try {
       let moveSucceeded = false;
       let attempt = 0;
+      let thinkingMs = 0;
       const baseLength = messagesForAgent.length; // before retry loop
       let attemptStartIdx = baseLength;
 
@@ -153,10 +250,53 @@ export function Home() {
         const isRetry = attempt > 1;
 
         if (isRetry) {
-          chatRef.current?.addSystemMessage(`Retry attempt ${attempt - 1}/${retryAttempts}...`);
+          say(`Retry attempt ${attempt - 1}/${retryAttempts}...`);
         }
 
-        const result = await agent.generate(messagesForAgent, opponent, state.fullmoveNumber);
+        const startedAt = Date.now();
+        const call: SessionCall = {
+          id: crypto.randomUUID(),
+          color,
+          agentId: agent.id,
+          model: agent.model,
+          moveNumber: state.fullmoveNumber,
+          attempt,
+          startedAt: new Date(startedAt).toISOString(),
+          durationMs: 0,
+          settings,
+          historyCount: sharedLength,
+          input: messagesForAgent.slice(sharedLength),
+          cost: 0,
+          outcome: 'error',
+        };
+
+        let result: GenerateResult;
+        try {
+          result = await agent.generate(messagesForAgent, opponent, state.fullmoveNumber);
+        } catch (err) {
+          if (!isStale()) {
+            call.durationMs = Date.now() - startedAt;
+            call.error = err instanceof Error ? err.message : String(err);
+            session.calls.push(call);
+            save();
+          }
+          throw err;
+        }
+        if (isStale()) return false;
+
+        call.durationMs = Date.now() - startedAt;
+        thinkingMs += call.durationMs;
+        call.cost = result.cost;
+        call.usage = result.meta.usage;
+        call.providerMetadata = result.meta.providerMetadata;
+        call.response = {
+          text: result.text,
+          reasoning: result.meta.reasoning,
+          toolCalls: result.toolCalls,
+          finishReason: result.meta.finishReason,
+          id: result.meta.responseId,
+          modelId: result.meta.responseModel,
+        };
         if (result.cost) setTotalCost((prev) => prev + result.cost);
 
         // Record agent response in shared history
@@ -171,6 +311,7 @@ export function Home() {
         // Send agent's text to the shared chat
         if (result.text) {
           chatRef.current?.addAgentMessage(agent.name, color, result.text);
+          session.chat.push({ at: new Date().toISOString(), role: color, text: result.text, sender: agent.name });
         }
 
         messagesForAgent = [...messagesForAgent, agentMessage];
@@ -180,9 +321,14 @@ export function Home() {
         if (moveCall) {
           const moveSan = moveCall.args.move as string;
           const moveResult = engine.moveSAN(moveSan);
+          call.move = moveSan;
 
           let toolResultContent: string;
           if (moveResult.success) {
+            call.outcome = 'move';
+            session.calls.push(call);
+            session.moves.push({ ...describeLastMove(engine, 'agent'), callId: call.id, attempts: attempt, thinkingMs });
+            syncResult(session, engine);
             setGameState(engine.getState());
             const history = engine.getHistory();
             const last = history[history.length - 1];
@@ -194,12 +340,14 @@ export function Home() {
             const moveNum = Math.ceil(updatedSan.length / 2);
             const side = updatedSan.length % 2 === 1 ? 'White' : 'Black';
             toolResultContent = `Move ${lastSan} accepted.`;
-            chatRef.current?.addSystemMessage(`${moveNum}. ${side}: ${lastSan}`);
+            say(`${moveNum}. ${side}: ${lastSan}`);
             moveSucceeded = true;
           } else {
+            call.outcome = 'invalid-move';
+            session.calls.push(call);
             playSound('illegal');
             toolResultContent = `Invalid move "${moveSan}": ${moveResult.error}`;
-            chatRef.current?.addSystemMessage(`${agent.name} tried invalid move: ${moveSan} — ${moveResult.error}`);
+            say(`${agent.name} tried invalid move: ${moveSan} — ${moveResult.error}`);
 
             // Add FEN context on error if enabled and we have retries left
             if (sendFenOnError && attempt < maxAttempts) {
@@ -221,7 +369,9 @@ export function Home() {
           messagesForAgent = [...messagesForAgent, toolResultMessage];
         } else {
           // Agent responded without making a move
-          chatRef.current?.addSystemMessage(`${agent.name} responded without making a move.`);
+          call.outcome = 'no-move';
+          session.calls.push(call);
+          say(`${agent.name} responded without making a move.`);
 
           // Add hint for retry
           if (attempt < maxAttempts) {
@@ -235,23 +385,25 @@ export function Home() {
         }
       }
 
-      // Only persist to shared messages when the move succeeded.
-      // On success: keep base + final (successful) attempt, dropping
-      // intermediate failed attempts so they don't leak to the opponent.
+      // Only add to shared messages when the move succeeded.
+      // On success: add the context message and the final (successful)
+      // attempt, dropping intermediate failed attempts so they don't leak to
+      // the opponent. They go after whatever is in the shared history now, so
+      // a moderator message sent while the model was thinking is kept.
       // On failure: leave sharedMessages unchanged — the next turn will
       // start fresh with its own context message.
       if (moveSucceeded) {
-        const finalMessages = [
-          ...messagesForAgent.slice(0, baseLength),
+        commitMessages([
+          ...sharedMessagesRef.current,
+          ...messagesForAgent.slice(sharedLength, baseLength),
           ...messagesForAgent.slice(attemptStartIdx),
-        ];
-        sharedMessagesRef.current = finalMessages;
-        setSharedMessages(finalMessages);
+        ]);
       }
       return moveSucceeded;
     } catch (err) {
+      if (isStale()) return false;
       const errorMsg = err instanceof Error ? err.message : String(err);
-      chatRef.current?.addSystemMessage(`${agent.name} error: ${errorMsg}`);
+      say(`${agent.name} error: ${errorMsg}`);
       return false;
     } finally {
       setThinkingColor(null);
@@ -275,6 +427,11 @@ export function Home() {
     let cancelled = false;
     (async () => {
       while (autoPlayRef.current && !cancelled) {
+        // The game is over: asking the mated side for a move only costs a call.
+        if (sessionRef.current.status === 'finished') {
+          setAutoPlay(false);
+          break;
+        }
         const color = engineRef.current.getState().activeColor;
         const ok = await handleAgentMoveRef.current(color);
         if (!ok || !autoPlayRef.current || cancelled) {
@@ -288,42 +445,40 @@ export function Home() {
   }, [autoPlay]);
 
   const handleModeratorMessage = useCallback((text: string) => {
-    const msg: Message = { sender: 'moderator', content: text };
-    setSharedMessages((prev) => {
-      const next = [...prev, msg];
-      sharedMessagesRef.current = next;
-      return next;
-    });
-  }, []);
+    sessionRef.current.chat.push({ at: new Date().toISOString(), role: 'moderator', text });
+    commitMessages([...sharedMessagesRef.current, { sender: 'moderator', content: text }]);
+  }, [commitMessages]);
 
   const handleReset = useCallback((fisher?: boolean) => {
-    engineRef.current.reset(fisher);
-    const state = engineRef.current.getState();
-    setGameState(state);
-    const mode = fisher ? 'Chess960 (Fischer Random)' : 'Standard';
-    const fen = engineRef.current.getFEN();
-    setSanMoves([]);
-    setLastMove(null);
-    sharedMessagesRef.current = [];
-    setSharedMessages([]);
-    setIsFischer(!!fisher);
-    setTotalCost(0);
-    setAutoPlay(false);
-    whiteRef.current?.rerollName();
-    whiteRef.current?.clearLog();
-    blackRef.current?.rerollName();
-    blackRef.current?.clearLog();
-    chatRef.current?.clear();
-    chatRef.current?.addSystemMessage(`Game reset — Mode: ${mode} FEN: ${fen}`);
-  }, []);
+    onNewGame(!!fisher, playersRef.current);
+  }, [onNewGame]);
 
   useEffect(() => {
     const el = notationRef.current;
     if (el) el.scrollLeft = el.scrollWidth;
   }, [sanMoves]);
 
+  // On open: bring a stored game back, or announce the new one.
   useEffect(() => {
-    handleReset();
+    const session = sessionRef.current;
+    if (initial.stored) {
+      chatRef.current?.restore(session.chat);
+      whiteRef.current?.restoreLog(logEntriesFor(session, 'white'));
+      blackRef.current?.restoreLog(logEntriesFor(session, 'black'));
+      const state = engineRef.current.getState();
+      chatRef.current?.addSystemMessage(session.status === 'finished'
+        ? 'Game restored — it is over.'
+        : `Game restored — move ${state.fullmoveNumber}, ${state.activeColor} to move.`);
+      return;
+    }
+    // Effects run twice in development; the announcement must be recorded once.
+    if (announcedRef.current) {
+      chatRef.current?.restore(session.chat);
+      return;
+    }
+    announcedRef.current = true;
+    const mode = session.mode === 'chess960' ? 'Chess960 (Fischer Random)' : 'Standard';
+    say(`New game — Mode: ${mode} FEN: ${session.initialFen}`);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -343,7 +498,7 @@ export function Home() {
 
   return (
     <>
-      <Header totalCost={totalCost} />
+      <Header totalCost={totalCost} gameId={started ? initial.session.id : undefined} />
       <div className="home">
         <div className="toolbar">
           <button
@@ -389,7 +544,7 @@ export function Home() {
           </button>
         </div>
         <div className="home__layout">
-          <WhitePanel ref={whiteRef} isOpen={showWhite} messages={sharedMessages} fischer960={isFischer} />
+          <WhitePanel ref={whiteRef} isOpen={showWhite} messages={sharedMessages} fischer960={isFischer} restored={restoredPlayers?.white} defaults={defaults?.white} onSetupChange={handleSetupChange} />
           <Arena
             ref={chatRef}
             gameState={gameState}
@@ -407,7 +562,7 @@ export function Home() {
             fen={engineRef.current.getFEN()}
             sanMoves={sanMoves}
           />
-          <BlackPanel ref={blackRef} isOpen={showBlack} messages={sharedMessages} fischer960={isFischer} />
+          <BlackPanel ref={blackRef} isOpen={showBlack} messages={sharedMessages} fischer960={isFischer} restored={restoredPlayers?.black} defaults={defaults?.black} onSetupChange={handleSetupChange} />
         </div>
       </div>
     </>

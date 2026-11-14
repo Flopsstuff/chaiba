@@ -1,6 +1,19 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { Header } from '../components/Header';
 import { ChessPrompts, ChessPromptsData, DEFAULT_PROMPTS } from '../agents/ChessPrompts';
+import { exportSession, openSession, readSession, sessionFileName } from '../lib/session';
+import type { SessionMeta } from '../lib/session';
+import {
+  deleteFinishedSessions,
+  deleteSession,
+  getSession,
+  listSessions,
+  putSession,
+  subscribeSessions,
+} from '../lib/sessionStore';
+import { listHeldSessions } from '../lib/sessionLock';
+import { gamePath } from '../lib/navigation';
 import './Settings.css';
 
 const API_KEY_STORAGE = 'openrouter_api_key';
@@ -12,6 +25,24 @@ interface ApiModel {
   promptPrice?: number;
   completionPrice?: number;
   supportsTools?: boolean;
+}
+
+/** Result in score notation, or "In progress" for a game still going. */
+function outcome(game: SessionMeta): string {
+  if (game.status !== 'finished') return 'In progress';
+  if (game.winner === 'white') return '1-0';
+  if (game.winner === 'black') return '0-1';
+  return '½-½';
+}
+
+function shortDate(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' });
+}
+
+function errorText(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
 }
 
 export function Settings() {
@@ -30,6 +61,118 @@ export function Settings() {
   const [sendContext, setSendContext] = useState(true);
   const [retryAttempts, setRetryAttempts] = useState(0);
   const [sendFenOnError, setSendFenOnError] = useState(false);
+
+  const navigate = useNavigate();
+  const [games, setGames] = useState<SessionMeta[] | null>(null);
+  const [gamesError, setGamesError] = useState<string | null>(null);
+  const [heldGames, setHeldGames] = useState<string[]>([]);
+  const [gamesNotice, setGamesNotice] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null);
+  const importInputRef = useRef<HTMLInputElement>(null);
+  const gamesRequest = useRef(0);
+
+  const refreshGames = useCallback(async () => {
+    const request = ++gamesRequest.current;
+    try {
+      // The list is still useful when the lock state cannot be read.
+      const [list, held] = await Promise.all([
+        listSessions(),
+        listHeldSessions().catch(() => [] as string[]),
+      ]);
+      if (request !== gamesRequest.current) return;
+      setGames(list);
+      setHeldGames(held);
+      setGamesError(null);
+    } catch (err) {
+      if (request !== gamesRequest.current) return;
+      setGamesError(`Could not load the saved games: ${errorText(err)}`);
+    }
+  }, []);
+
+  useEffect(() => {
+    const refresh = () => { void refreshGames(); };
+    refresh();
+    let unsubscribe = () => {};
+    try {
+      unsubscribe = subscribeSessions(refresh);
+    } catch {
+      // Without live updates the list is refreshed after each action only.
+    }
+    // Opening or closing a game in another tab changes what may be deleted,
+    // and the store does not announce that.
+    window.addEventListener('focus', refresh);
+    return () => {
+      unsubscribe();
+      window.removeEventListener('focus', refresh);
+    };
+  }, [refreshGames]);
+
+  const handleExportGame = async (id: string) => {
+    try {
+      const stored = await getSession(id);
+      if (!stored) throw new Error('This game is no longer stored.');
+      const { session, engine } = openSession(stored);
+      const blob = new Blob([exportSession(session, engine)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = sessionFileName(session);
+      link.click();
+      URL.revokeObjectURL(url);
+      setGamesNotice({ kind: 'ok', text: `Exported ${link.download}` });
+    } catch (err) {
+      setGamesNotice({ kind: 'error', text: `Export failed: ${errorText(err)}` });
+    }
+  };
+
+  const handleDeleteGame = async (game: SessionMeta) => {
+    const title = `${game.white.name} vs ${game.black.name}`;
+    if (!window.confirm(`Delete the game ${title}? This cannot be undone.`)) return;
+    try {
+      // The list may be stale: the game could have been opened in a tab since.
+      const held = await listHeldSessions().catch(() => [] as string[]);
+      if (held.includes(game.id)) {
+        setHeldGames(held);
+        throw new Error('the game is open in a tab. Close it there first.');
+      }
+      await deleteSession(game.id);
+      setGamesNotice({ kind: 'ok', text: `Deleted ${title}.` });
+    } catch (err) {
+      setGamesNotice({ kind: 'error', text: `Delete failed: ${errorText(err)}` });
+    }
+    await refreshGames();
+  };
+
+  const handleImport = async (file: File) => {
+    try {
+      const { session } = readSession(await file.text());
+      if (await getSession(session.id)
+        && !window.confirm('This game is already in the list. Replace it?')) {
+        return;
+      }
+      await putSession(session);
+      navigate(gamePath(session.id));
+    } catch (err) {
+      setGamesNotice({ kind: 'error', text: `Import failed: ${errorText(err)}` });
+    }
+  };
+
+  const handleDeleteFinished = async () => {
+    if (!window.confirm('Delete all finished games? This cannot be undone.')) return;
+    try {
+      // Games open in a tab are kept, the same as with the per-game Delete.
+      const held = await listHeldSessions().catch(() => [] as string[]);
+      const removed = await deleteFinishedSessions(held);
+      setGamesNotice({
+        kind: 'ok',
+        text: `Removed ${removed} finished ${removed === 1 ? 'game' : 'games'}.`,
+      });
+    } catch (err) {
+      setGamesNotice({ kind: 'error', text: `Delete failed: ${errorText(err)}` });
+    }
+    await refreshGames();
+  };
+
+  const finishedCount = games?.filter((g) => g.status === 'finished').length ?? 0;
 
   useEffect(() => {
     const storedKey = localStorage.getItem(API_KEY_STORAGE);
@@ -287,6 +430,113 @@ export function Settings() {
                 Reset to Defaults
               </button>
             </div>
+          </div>
+
+          <div className="settings-section">
+            <label className="settings-label">
+              Games <span className="settings-hint">(stored in this browser)</span>
+            </label>
+
+            {gamesError && (
+              <p className="settings-session-notice settings-session-notice--error">{gamesError}</p>
+            )}
+            {!gamesError && games === null && <p className="settings-games__empty">Loading…</p>}
+            {!gamesError && games?.length === 0 && (
+              <p className="settings-games__empty">
+                No saved games yet. A game is saved once the first move is made.
+              </p>
+            )}
+            {games && games.length > 0 && (
+              <ul className="settings-games">
+                {games.map((game) => {
+                  const isHeld = heldGames.includes(game.id);
+                  return (
+                    <li key={game.id} className="settings-game">
+                      <div className="settings-game__info">
+                        <div className="settings-game__title">
+                          <span className={`settings-game__status settings-game__status--${game.status}`}>
+                            {outcome(game)}
+                          </span>
+                          <span className="settings-game__players">
+                            {game.white.name} vs {game.black.name}
+                          </span>
+                          {game.mode === 'chess960' && (
+                            <span className="settings-game__tag">Chess960</span>
+                          )}
+                          {isHeld && (
+                            <span className="settings-game__tag settings-game__tag--held">open in a tab</span>
+                          )}
+                        </div>
+                        <div className="settings-game__models">
+                          {game.white.model} vs {game.black.model}
+                        </div>
+                        <div className="settings-game__details">
+                          {Math.ceil(game.plies / 2)} {Math.ceil(game.plies / 2) === 1 ? 'move' : 'moves'}
+                          {' · '}${game.cost.toFixed(4)}
+                          {' · '}{shortDate(game.updatedAt)}
+                        </div>
+                      </div>
+                      <div className="settings-game__actions">
+                        <Link className="settings-button settings-game__action" to={gamePath(game.id)}>
+                          Open
+                        </Link>
+                        <button
+                          type="button"
+                          className="settings-button settings-button--secondary settings-game__action"
+                          onClick={() => handleExportGame(game.id)}
+                        >
+                          Export
+                        </button>
+                        <button
+                          type="button"
+                          className="settings-button settings-button--secondary settings-game__action settings-game__action--danger"
+                          onClick={() => handleDeleteGame(game)}
+                          disabled={isHeld}
+                          title={isHeld ? 'This game is open in a tab. Close it there to delete it.' : undefined}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+
+            <div className="settings-buttons settings-games__buttons">
+              <button
+                type="button"
+                className="settings-button"
+                onClick={() => importInputRef.current?.click()}
+              >
+                Import JSON
+              </button>
+              <button
+                type="button"
+                className="settings-button settings-button--secondary"
+                onClick={handleDeleteFinished}
+                disabled={finishedCount === 0}
+              >
+                Delete finished
+              </button>
+              <input
+                ref={importInputRef}
+                type="file"
+                accept="application/json,.json"
+                hidden
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  // Reset so the same file can be picked again.
+                  e.target.value = '';
+                  if (file) void handleImport(file);
+                }}
+              />
+            </div>
+            {gamesNotice && (
+              <p className={`settings-session-notice settings-session-notice--${gamesNotice.kind}`}>
+                {gamesNotice.text}
+              </p>
+            )}
           </div>
 
           <div className="settings-section">
