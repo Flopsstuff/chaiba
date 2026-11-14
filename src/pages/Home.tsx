@@ -8,11 +8,18 @@ import { isCheckmate, isStalemate } from '../chess/rules';
 import type { GameState } from '../chess/types';
 import type { GameChatHandle } from '../components/chat/GameChat';
 import type { AgentCardHandle } from '../components/panels/AgentCard';
+import { soundForMove } from '../lib/soundEvents';
+import { playSound } from '../lib/sounds';
 import { MoveCommand } from '../types';
 import type { ChessColor, Message } from '../types';
 import './Home.css';
 
 const MOBILE_BREAKPOINT = 768;
+
+/** Play the sound for a move just made; `state` is the position after it. */
+function playMoveSound(state: GameState, san: string) {
+  playSound(soundForMove(san, isStalemate(state, state.activeColor)));
+}
 
 export function Home() {
   const engineRef = useRef<ChessEngine>(new ChessEngine());
@@ -47,6 +54,7 @@ export function Home() {
       const san = engine.getSAN();
       setSanMoves(san);
       const lastSan = san[san.length - 1];
+      playMoveSound(engine.getState(), lastSan);
       const moveNum = Math.ceil(san.length / 2);
       const side = san.length % 2 === 1 ? 'White' : 'Black';
       chatRef.current?.addSystemMessage(`${moveNum}. ${side}: ${lastSan}`);
@@ -78,6 +86,7 @@ export function Home() {
         return next;
       });
     } else {
+      playSound('illegal');
       chatRef.current?.addSystemMessage(result.error);
     }
   }, []);
@@ -181,12 +190,14 @@ export function Home() {
             const updatedSan = engine.getSAN();
             setSanMoves(updatedSan);
             const lastSan = updatedSan[updatedSan.length - 1];
+            playMoveSound(engine.getState(), lastSan);
             const moveNum = Math.ceil(updatedSan.length / 2);
             const side = updatedSan.length % 2 === 1 ? 'White' : 'Black';
             toolResultContent = `Move ${lastSan} accepted.`;
             chatRef.current?.addSystemMessage(`${moveNum}. ${side}: ${lastSan}`);
             moveSucceeded = true;
           } else {
+            playSound('illegal');
             toolResultContent = `Invalid move "${moveSan}": ${moveResult.error}`;
             chatRef.current?.addSystemMessage(`${agent.name} tried invalid move: ${moveSan} — ${moveResult.error}`);
 

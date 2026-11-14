@@ -34,6 +34,26 @@
   align-items: center;
 }
 
+.header-sound {
+  padding: 5px 10px;
+  background-color: transparent;
+  color: #90a4ae;
+  border: 1px solid #546e7a;
+  border-radius: 4px;
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.header-sound:hover {
+  background-color: #37474f;
+}
+
+.header-sound--on {
+  color: white;
+  border-color: #61dafb;
+}
+
 .header-settings {
   padding: 5px 12px;
   background-color: #61dafb;
