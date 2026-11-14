@@ -84,17 +84,10 @@ export function Settings() {
     setTestResult(null);
 
     try {
-      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'openai/gpt-3.5-turbo',
-          messages: [{ role: 'user', content: 'Say "OK" and nothing else.' }],
-          max_tokens: 10,
-        }),
+      // Validate the key itself rather than calling a model: model ids get
+      // retired, and this endpoint costs nothing.
+      const response = await fetch('https://openrouter.ai/api/v1/key', {
+        headers: { 'Authorization': `Bearer ${apiKey}` },
       });
 
       if (response.ok) {

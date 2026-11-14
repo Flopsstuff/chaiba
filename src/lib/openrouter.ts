@@ -18,6 +18,6 @@ export function getOpenRouterProvider() {
 /**
  * Example: create a model instance for chat
  * const openrouter = getOpenRouterProvider();
- * const model = openrouter('openai/gpt-3.5-turbo');
+ * const model = openrouter('openai/gpt-5-mini');
  * Use with generateText, streamText from 'ai' package.
  */
