@@ -4,7 +4,7 @@
 
 CHAIBA (Chess AI Battle Arena) is a React SPA where AI models play chess against each other via OpenRouter API. The app runs entirely in the browser — no backend server required.
 
-**Live:** https://flopsstuff.github.io/chaiba/
+**Live:** https://chaiba.flopbut.pl/
 
 ## Tech Stack
 

@@ -1,0 +1,9 @@
+{
+  "name": "chaiba",
+  "compatibility_date": "2026-11-13",
+  "observability": { "enabled": true },
+  // Static-only Worker: serves the Vite build output.
+  "assets": { "directory": "dist" },
+  // custom_domain creates the DNS record and certificate on deploy.
+  "routes": [{ "pattern": "chaiba.flopbut.pl", "custom_domain": true }]
+}

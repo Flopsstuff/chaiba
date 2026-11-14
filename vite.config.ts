@@ -3,9 +3,9 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
 // https://vite.dev/config/
-// `base` matches the GitHub Pages repo path so assets resolve under /chaiba/.
+// The app is served from the root of its own domain (chaiba.flopbut.pl).
 export default defineConfig({
-  base: '/chaiba/',
+  base: '/',
   plugins: [react()],
   build: {
     outDir: 'dist',

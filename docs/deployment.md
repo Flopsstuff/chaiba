@@ -1,9 +1,15 @@
 # Deployment
 
-## GitHub Pages
+## Cloudflare Workers
 
-The app is deployed to GitHub Pages at:
-**https://flopsstuff.github.io/chaiba/**
+The app is deployed as a static-assets Cloudflare Worker (`chaiba`) on its own
+domain:
+**https://chaiba.flopbut.pl/**
+
+Worker configuration lives in `wrangler.jsonc`: it serves the `dist/` directory
+and binds the custom domain `chaiba.flopbut.pl` (zone `flopbut.pl`). The
+`custom_domain` route creates the DNS record and certificate on deploy. The
+`*.workers.dev` address is not enabled.
 
 ## CI/CD Pipeline
 
@@ -21,19 +27,28 @@ The app is deployed to GitHub Pages at:
 3. `corepack enable` — activate the pinned Yarn 4 version
 4. `yarn install --immutable` — install dependencies from `yarn.lock`
 5. `yarn build` — Vite production build to `dist/`
-6. Upload the `dist/` artifact
-7. Deploy to GitHub Pages
+6. `yarn wrangler deploy` — upload `dist/` to Cloudflare
+
+### Repository secrets
+
+- `CLOUDFLARE_API_TOKEN` — API token with the "Edit Cloudflare Workers"
+  template, scoped to the `flopbut.pl` zone
+- `CLOUDFLARE_ACCOUNT_ID` — Cloudflare account id
 
 ### Important Notes
 
-- **Base path.** The Vite `base` is set to `/chaiba/` in `vite.config.ts` so all
-  asset URLs resolve under the GitHub Pages project subpath. This replaces the
-  old CRA `PUBLIC_URL=/chaiba` environment variable — there is no longer a
-  `PUBLIC_URL` to set.
-- **Hash routing is required.** GitHub Pages doesn't support server-side routing,
-  so `HashRouter` ensures all routes work as `/#/path`.
-- **Build output is `dist/`** (Vite default), not `build/` (the old CRA default).
-- Concurrency group `"pages"` prevents parallel deployments.
+- **Base path.** The Vite `base` is `/` in `vite.config.ts`: the app is served
+  from the root of its domain.
+- **Hash routing.** The app uses `HashRouter`, so all routes work as `/#/path`
+  and no server-side SPA fallback is needed.
+- **Build output is `dist/`** (Vite default).
+- Concurrency group `"deploy"` prevents parallel deployments.
+
+### Manual deploy
+
+```bash
+yarn build && yarn wrangler deploy   # requires `wrangler login`
+```
 
 ## Local Development
 
@@ -42,7 +57,7 @@ This project uses **Yarn 4** (via Corepack) and **Vite**.
 ```bash
 corepack enable     # one-time
 yarn install        # install dependencies
-yarn dev            # Vite dev server at http://localhost:5173/chaiba/
+yarn dev            # Vite dev server at http://localhost:5173/
 yarn build          # production build to ./dist
 yarn preview        # serve the production build locally
 yarn test           # run the Vitest suite

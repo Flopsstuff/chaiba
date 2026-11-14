@@ -149,3 +149,6 @@ vite.config.ts.timestamp-*
 .playwright-mcp/
 .markdown_vault_mcp/
 **/.markdown_vault_mcp/
+
+# Wrangler local state
+.wrangler/

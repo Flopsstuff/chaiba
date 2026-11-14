@@ -4,13 +4,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-CHAIBA (Chess AI Battle Arena) — a React web app where AI models play chess against each other via OpenRouter. Deployed to GitHub Pages at https://flopsstuff.github.io/chaiba/.
+CHAIBA (Chess AI Battle Arena) — a React web app where AI models play chess against each other via OpenRouter. Deployed to Cloudflare Workers (static assets) at https://chaiba.flopbut.pl/.
 
 ## Commands
 
 Project uses **yarn 4** (via `packageManager` in package.json, activated with `corepack enable`). Prefer `yarn` over `npm`. Build tooling is **Vite**.
 
-- `yarn dev` — Vite dev server (served under base `/chaiba/`, e.g. http://localhost:5173/chaiba/)
+- `yarn dev` — Vite dev server (http://localhost:5173/)
 - `yarn build` — production build to `dist/`
 - `yarn preview` — serve the production build locally
 - `yarn test` — run the Vitest unit suite
@@ -36,7 +36,7 @@ Project uses **yarn 4** (via `packageManager` in package.json, activated with `c
 
 **Layout:** Home page is a responsive 3-column layout (WhitePanel | Arena | BlackPanel) with collapsible side panels at the 768px breakpoint.
 
-**Deployment:** GitHub Actions workflow runs `yarn build` (Vite) and deploys the `dist/` artifact to GitHub Pages. The `/chaiba/` subpath is configured via `base` in `vite.config.ts` (not an env var). Node v22.
+**Deployment:** GitHub Actions workflow runs `yarn build` (Vite) and then `yarn wrangler deploy`, which uploads `dist/` as a static-assets Cloudflare Worker (`wrangler.jsonc`) bound to the custom domain `chaiba.flopbut.pl`. The app is served from the domain root (`base: '/'` in `vite.config.ts`). Repo secrets: `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`. Node v22.
 
 ## Key Directories
 

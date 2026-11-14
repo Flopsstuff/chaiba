@@ -1,7 +1,7 @@
 # chaiba
 Chess AI Battle Arena — a React web app where AI models play chess against each other via OpenRouter.
 
-**Demo:** [https://flopsstuff.github.io/chaiba/](https://flopsstuff.github.io/chaiba/)
+**Demo:** [https://chaiba.flopbut.pl/](https://chaiba.flopbut.pl/)
 
 ![CHAIBA screenshot](docs/images/screenshot.png)
 
@@ -26,16 +26,13 @@ This project uses **Yarn 4** (see `packageManager` in `package.json`).
 ```bash
 corepack enable     # one-time: activate the pinned Yarn version
 yarn install        # install dependencies
-yarn dev            # start the Vite dev server (http://localhost:5173/chaiba/)
+yarn dev            # start the Vite dev server (http://localhost:5173/)
 yarn build          # production build to ./dist
 yarn preview        # serve the production build locally for verification
 yarn test           # run the Vitest unit suite
 yarn typecheck      # type-check with tsc --noEmit
 yarn lint           # run ESLint (flat config) over the repo
 ```
-
-> The dev and preview servers are served under the `/chaiba/` base path (matching
-> the GitHub Pages deployment), so open `http://localhost:5173/chaiba/`.
 
 ## Continuous integration
 
@@ -55,6 +52,7 @@ suite all pass. Run the same checks locally before pushing to avoid a red CI.
 
 ## Deployment
 
-Pushes to `main` are built with Vite and published to GitHub Pages via
-`.github/workflows/deploy.yml` (build output: `dist/`, base path: `/chaiba/`).
+Pushes to `main` are built with Vite and deployed to Cloudflare Workers (static
+assets) at `chaiba.flopbut.pl` via `.github/workflows/deploy.yml`
+(build output: `dist/`, Worker config: `wrangler.jsonc`).
 See [docs/deployment.md](docs/deployment.md) for details.
